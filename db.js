@@ -1,9 +1,14 @@
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
-const path = require('path');
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Recreate __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Database initialization
-async function initializeDatabase() {
+export async function initializeDatabase() {
     const db = await open({
         filename: path.join(__dirname, 'data', 'stocks.db'),
         driver: sqlite3.Database
@@ -28,7 +33,7 @@ async function initializeDatabase() {
 }
 
 // Add price data to history
-async function addPriceHistory(db, symbol, price, change, changePercent) {
+export async function addPriceHistory(db, symbol, price, change, changePercent) {
     const timestamp = new Date().toISOString();
     await db.run(
         `INSERT OR REPLACE INTO price_history (symbol, timestamp, price, change, change_percent)
@@ -38,7 +43,7 @@ async function addPriceHistory(db, symbol, price, change, changePercent) {
 }
 
 // Get price history for a symbol
-async function getPriceHistory(db, symbol, limit = 100) {
+export async function getPriceHistory(db, symbol, limit = 100) {
     return await db.all(
         `SELECT * FROM price_history 
          WHERE symbol = ? 
@@ -49,7 +54,7 @@ async function getPriceHistory(db, symbol, limit = 100) {
 }
 
 // Get the latest price for a symbol
-async function getLatestPrice(db, symbol) {
+export async function getLatestPrice(db, symbol) {
     return await db.get(
         `SELECT * FROM price_history 
          WHERE symbol = ? 
@@ -58,10 +63,3 @@ async function getLatestPrice(db, symbol) {
         [symbol]
     );
 }
-
-module.exports = {
-    initializeDatabase,
-    addPriceHistory,
-    getPriceHistory,
-    getLatestPrice
-};

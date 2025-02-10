@@ -1,22 +1,44 @@
-require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const yahooFinance = require('yahoo-finance2').default;
-const yaml = require('js-yaml');
-const fs = require('fs');
-const { initializeDatabase, addPriceHistory, getPriceHistory } = require('./db');
+import 'dotenv/config';
+import express from 'express';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import yahooFinance from 'yahoo-finance2';
+import yaml from 'js-yaml';
+import fs from 'fs';
+import { initializeDatabase, addPriceHistory, getPriceHistory } from './db.js';
+import { networkInterfaces } from 'os';
+
 const app = express();
 
-// Load configuration
+// Create our directory path constants
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load configuration with better error handling
 let watchlist = [];
 let config;
 try {
-    config = yaml.load(fs.readFileSync(path.join(__dirname, 'config.yaml'), 'utf8'));
-    watchlist = config.watchlist || [];
-    console.log('Loaded watchlist from config:', watchlist);
+    // Read and parse the YAML file
+    const configPath = path.join(__dirname, 'config.yaml');
+    const configFile = fs.readFileSync(configPath, 'utf8');
+    config = yaml.load(configFile);
+    
+    // Extract and validate watchlist with a default empty array
+    watchlist = config?.watchlist || [];
+    
+    // Log success with more detailed information
+    console.log('Successfully loaded configuration file');
+    console.log('Loaded watchlist contains', watchlist.length, 'items:', watchlist);
 } catch (error) {
-    console.error('Error loading config.yaml:', error);
-    process.exit(1); // Exit if we can't load config
+    // Provide more specific error handling
+    if (error.code === 'ENOENT') {
+        console.error('Configuration file not found at:', path.join(__dirname, 'config.yaml'));
+    } else if (error instanceof yaml.YAMLException) {
+        console.error('YAML parsing error in config file:', error.message);
+    } else {
+        console.error('Unexpected error loading config:', error.message);
+    }
+    process.exit(1);
 }
 
 const PORT = process.env.PORT || config.server?.port || 3000;
@@ -186,7 +208,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
     
     // Get local IP address for easy mobile testing
-    const { networkInterfaces } = require('os');
     const nets = networkInterfaces();
     for (const name of Object.keys(nets)) {
         for (const net of nets[name]) {

@@ -1,6 +1,6 @@
 {
   "name": "portfolio-wrangler",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A self-hosted, real-time stock dashboard with pre-market and after-hours data",
   "main": "server.js",
   "scripts": {
