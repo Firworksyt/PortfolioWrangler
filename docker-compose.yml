@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  stock-dashboard:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml
+      - ./.env:/app/.env
+    restart: unless-stopped

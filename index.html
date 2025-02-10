@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Stock Dashboard</h1>
+            <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle Dark Mode">
+                <i class="fas fa-blind"></i>
+            </button>
+        </div>
+        <div id="stocks-container"></div>
+    </div>
+
+    <!-- Modal -->
+    <div id="chart-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="chart-title">Price History</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
