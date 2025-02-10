@@ -70,3 +70,4 @@ The project uses a simple architecture:
 
 - Automatically pickup changes to the config file and reload the server
 - Initialize prices from the database when the server starts
+- Cleanup structure to make it more maintainable
