@@ -2,6 +2,9 @@
 
 A self-hosted, realish-time stock dashboard that displays current prices including pre-market, and after-hours data for your watchlist. Built with Node.js and vanilla JavaScript.
 
+[![CI](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/ci.yml/badge.svg)](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/security.yml/badge.svg)](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/security.yml)
+
 ## Features
 
 - 📈 Real-time stock price updates
@@ -65,6 +68,15 @@ The project uses a simple architecture:
 - `db.js`: Database operations
 - `styles.css`: UI styling
 - `config.yaml`: Watchlist configuration
+
+## Known Issues
+
+### Security
+
+- Medium severity vulnerability in `inflight@1.0.6` (dependency of sqlite3): [SNYK-JS-INFLIGHT-6095116](https://security.snyk.io/vuln/SNYK-JS-INFLIGHT-6095116)
+  - No upgrade path or patch available
+  - Only affects development dependencies
+  - Will be resolved when a fix is available upstream
 
 ## Planned Updates
 
