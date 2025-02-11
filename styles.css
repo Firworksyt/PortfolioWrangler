@@ -33,7 +33,7 @@ body {
     padding: 20px;
     line-height: 1.5;
     color: var(--text-color);
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
 }
 
 .container {
@@ -218,15 +218,30 @@ button:hover {
 }
 
 .price-up {
-    animation: priceUp 1s ease-in-out;
+    animation: priceUp 2s ease-in-out;
 }
 
 .price-down {
-    animation: priceDown 1s ease-in-out;
+    animation: priceDown 2s ease-in-out;
 }
 
 .price-neutral {
-    animation: priceNeutral 1s ease-in-out;
+    animation: priceNeutral 2s ease-in-out;
+}
+
+/* Countdown animation */
+.countdown {
+    display: inline-block;
+    min-width: 1.2em;
+    text-align: center;
+    font-weight: bold;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
 }
 
 /* Modal styles */
@@ -302,4 +317,29 @@ button:hover {
     width: 100%;
     height: 500px;
     margin-top: 20px;
+}
+
+.rate-limit-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+    padding: 1rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.rate-limit-warning .material-icons {
+    color: #856404;
+}
+
+.rate-limit-warning p {
+    margin: 0;
+    color: #856404;
+}
+
+.rate-limit-warning small {
+    color: #666;
+    font-size: 0.8em;
 }
