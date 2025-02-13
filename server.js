@@ -43,8 +43,10 @@ try {
 
 const PORT = process.env.PORT || config.server?.port || 3000;
 
-// Initialize database
+// Initialize database and load initial prices
 let db;
+let latestPrices = new Map();
+
 (async () => {
     // Ensure data directory exists for Docker volume
     const dataDir = path.join(__dirname, 'data');
@@ -54,10 +56,29 @@ let db;
     
     db = await initializeDatabase();
     console.log('Database initialized');
+
+    // Load initial prices for all watchlist symbols
+    for (const symbol of watchlist) {
+        try {
+            const history = await getPriceHistory(db, symbol);
+            if (history && history.length > 0) {
+                const latest = history[history.length - 1];
+                latestPrices.set(symbol, {
+                    price: latest.price,
+                    change: latest.change,
+                    changePercent: latest.changePercent,
+                    timestamp: latest.timestamp
+                });
+                console.log(`Loaded initial price for ${symbol} from database`);
+            }
+        } catch (error) {
+            console.error(`Error loading initial price for ${symbol}:`, error);
+        }
+    }
 })();
 
 // Request scheduling
-const UPDATE_INTERVAL = 10000; // 10 seconds between each stock update
+const UPDATE_INTERVAL = 1000; // 10 seconds between each stock update
 let updateInterval;
 
 function calculateUpdateSchedule() {
@@ -141,6 +162,27 @@ app.get('/api/stock/:symbol', async (req, res) => {
         const data = await yahooFinance.quote(symbol);
         
         if (!data) {
+            // If live data fetch fails, try to return cached data from database
+            const cachedData = latestPrices.get(symbol);
+            if (cachedData) {
+                const response = {
+                    'Global Quote': {
+                        '05. price': cachedData.price.toString(),
+                        '09. change': cachedData.change.toString(),
+                        '10. change percent': cachedData.changePercent.toFixed(2) + '%'
+                    },
+                    extendedHours: {
+                        isExtendedHours: false,
+                        price: null,
+                        change: null,
+                        marketState: 'CLOSED'
+                    },
+                    companyName: symbol,
+                    fromCache: true
+                };
+                res.json(response);
+                return;
+            }
             res.status(500).json({ error: 'Failed to fetch stock data' });
             return;
         }
@@ -197,7 +239,26 @@ app.get('/api/history/:symbol', async (req, res) => {
 
 // Get watchlist
 app.get('/api/watchlist', (req, res) => {
-    res.json({ watchlist });
+    // Convert latestPrices Map to an object for each symbol
+    const initialPrices = {};
+    for (const [symbol, data] of latestPrices.entries()) {
+        if (data && typeof data.price !== 'undefined') {
+            initialPrices[symbol] = {
+                'Global Quote': {
+                    '05. price': data.price?.toString() || '0',
+                    '09. change': data.change?.toString() || '0',
+                    '10. change percent': (data.changePercent || 0).toString()
+                },
+                fromCache: true,
+                companyName: symbol
+            };
+        }
+    }
+    
+    res.json({ 
+        watchlist,
+        initialPrices
+    });
 });
 
 // Start the update schedule

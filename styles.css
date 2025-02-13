@@ -131,6 +131,28 @@ button:hover {
     overflow: hidden;
 }
 
+.stock-card.cached {
+    opacity: 0.8;
+    position: relative;
+}
+
+.stock-card.cached::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: repeating-linear-gradient(
+        45deg,
+        var(--text-color),
+        var(--text-color) 10px,
+        transparent 10px,
+        transparent 20px
+    );
+    opacity: 0.3;
+}
+
 .stock-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 12px -1px rgb(0 0 0 / 0.15);

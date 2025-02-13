@@ -1,5 +1,5 @@
 let stocks = [];
-const REFRESH_INTERVAL = 5 * 60 * 1000; // Refresh every 5 minutes
+const REFRESH_INTERVAL = 1 * 60 * 1000; // Refresh every 5 minutes
 let lastRefreshTime = {};
 let lastPrices = {};
 let priceChart = null;
@@ -77,7 +77,15 @@ async function loadWatchlist() {
                 </div>
             `;
             container.appendChild(stockCard);
+
+            // If we have initial price data, display it immediately
+            if (data.initialPrices && data.initialPrices[symbol]) {
+                const initialData = data.initialPrices[symbol];
+                displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName);
+            }
         });
+        
+        // Start fetching live prices
         fetchAllStockPrices();
     } catch (error) {
         console.error('Error loading watchlist:', error);
@@ -108,54 +116,52 @@ async function fetchStockPrice(symbol) {
     }
 }
 
-function displayStockPrice(symbol, quote, companyName) {
-    const stockCard = document.querySelector(`[data-symbol="${symbol}"]`);
+async function displayStockPrice(symbol, quote, companyName) {
+    const stockCard = document.querySelector(`.stock-card[data-symbol="${symbol}"]`);
     if (!stockCard) return;
-    
-    const price = parseFloat(quote['05. price']).toFixed(2);
-    const change = parseFloat(quote['09. change']).toFixed(2);
-    const changePercent = parseFloat(quote['10. change percent']).toFixed(2);
-    // Always use the latest refresh time
-    const lastUpdated = lastRefreshTime[symbol].toLocaleTimeString();
-    const extendedHours = quote.extendedHours || {};
 
-    // Determine price change animation
-    let priceChangeClass = 'price-neutral';
-    if (lastPrices[symbol]) {
-        if (price > lastPrices[symbol]) {
-            priceChangeClass = 'price-up';
-        } else if (price < lastPrices[symbol]) {
-            priceChangeClass = 'price-down';
+    const price = parseFloat(quote['05. price']);
+    const change = parseFloat(quote['09. change']);
+    const changePercent = parseFloat(quote['10. change percent']);
+    const lastUpdate = lastRefreshTime[symbol] || new Date();
+    const previousPrice = lastPrices[symbol];
+    
+    // Update the last known price
+    lastPrices[symbol] = price;
+    
+    // Update company name if available
+    const companyNameElement = stockCard.querySelector('.company-name');
+    companyNameElement.textContent = companyName || symbol;
+
+    // Update price with animation
+    const priceElement = stockCard.querySelector('.stock-price');
+    priceElement.textContent = `$${price.toFixed(2)}`;
+    if (previousPrice) {
+        priceElement.classList.remove('price-up', 'price-down');
+        if (price > previousPrice) {
+            priceElement.classList.add('price-up');
+        } else if (price < previousPrice) {
+            priceElement.classList.add('price-down');
         }
     }
-    lastPrices[symbol] = price;
 
-    // Remove any existing animation classes
-    stockCard.classList.remove('price-up', 'price-down', 'price-neutral');
-    // Trigger reflow to restart animation
-    void stockCard.offsetWidth;
-    // Add new animation class
-    stockCard.classList.add(priceChangeClass);
+    // Update change info
+    const changeInfoElement = stockCard.querySelector('.change-info');
+    const changeText = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent.toFixed(2)}%)`;
+    changeInfoElement.textContent = changeText;
+    changeInfoElement.className = 'change-info ' + (change >= 0 ? 'positive' : 'negative');
 
-    const changeClass = change >= 0 ? 'positive' : 'negative';
-    const changePrefix = change >= 0 ? '+' : '';
-
-    // Create extended hours badge if needed
-    const extendedHoursBadge = extendedHours.isExtendedHours 
-        ? `<span class="extended-hours-badge">${new Date().getHours() < 12 ? 'Pre-Market' : 'After-Hours'}</span>`
-        : '';
+    // Update last refresh time
+    const lastUpdatedElement = stockCard.querySelector('.last-updated');
+    lastUpdatedElement.textContent = `Last updated: ${lastUpdate.toLocaleTimeString()}`;
     
-    stockCard.innerHTML = `
-        <h2>${symbol} ${extendedHoursBadge}</h2>
-        <div class="company-name">${companyName || symbol}</div>
-        <div class="stock-price">$${price}</div>
-        <div class="stock-details">
-            <div class="change-info ${changeClass}">
-                ${changePrefix}${change} (${changePrefix}${changePercent}%)
-            </div>
-            <div class="last-updated">Updated: ${lastUpdated}</div>
-        </div>
-    `;
+    // Add cached data indicator if the data is from cache
+    if (quote.fromCache) {
+        lastUpdatedElement.textContent += ' (cached)';
+        stockCard.classList.add('cached');
+    } else {
+        stockCard.classList.remove('cached');
+    }
 }
 
 async function showPriceHistory(symbol) {
