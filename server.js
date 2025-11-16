@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
 import yaml from 'js-yaml';
 import fs from 'fs';
 import { initializeDatabase, addPriceHistory, getPriceHistory } from './db.js';
@@ -42,6 +42,9 @@ try {
 }
 
 const PORT = process.env.PORT || config.server?.port || 3000;
+
+// Initialize Yahoo Finance
+const yahooFinance = new YahooFinance();
 
 // Initialize database and load initial prices
 let db;
