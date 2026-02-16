@@ -1,5 +1,11 @@
 import yaml from 'js-yaml';
 import {
+    calculatePriceFromQuote,
+    formatApiResponse,
+    formatCachedResponse,
+    extractConfigSettings
+} from '../lib/priceCalculation.js';
+import {
     regularMarketQuote,
     preMarketQuote,
     postMarketQuote,
@@ -9,78 +15,11 @@ import {
 } from './mocks/yahooFinance.js';
 
 /**
- * Business logic functions extracted from server.js for testing.
- * These mirror the calculations performed in the server endpoints.
- */
-
-/**
- * Calculate final price values from a Yahoo Finance quote.
- * This mirrors the logic in server.js updateStock and /api/stock/:symbol
- */
-function calculatePriceFromQuote(quote) {
-    const regularPrice = quote.regularMarketPrice;
-    const previousClose = quote.regularMarketPreviousClose;
-    const regularChange = quote.regularMarketChange;
-    const regularChangePercent = quote.regularMarketChangePercent;
-
-    // Get pre/post market data if available
-    const isPreMarket = quote.preMarketPrice !== undefined;
-    const isPostMarket = quote.postMarketPrice !== undefined;
-    const extendedPrice = isPreMarket ? quote.preMarketPrice : (isPostMarket ? quote.postMarketPrice : null);
-    const extendedChange = isPreMarket ? quote.preMarketChange : (isPostMarket ? quote.postMarketChange : null);
-
-    // Calculate final values
-    const finalPrice = extendedPrice || regularPrice;
-    const finalChange = (extendedPrice ? extendedChange + regularChange : regularChange) || 0;
-    const finalChangePercent = (finalChange / previousClose) * 100;
-
-    return {
-        finalPrice,
-        finalChange,
-        finalChangePercent,
-        regularMarketPrice: regularPrice,
-        regularMarketChange: regularChange,
-        regularMarketChangePercent: regularChangePercent,
-        isExtendedHours: isPreMarket || isPostMarket,
-        extendedHoursPrice: extendedPrice,
-        extendedHoursChange: extendedChange,
-        marketState: quote.marketState
-    };
-}
-
-/**
- * Format API response from quote data.
- * This mirrors the response format in /api/stock/:symbol
- */
-function formatApiResponse(quote) {
-    const priceData = calculatePriceFromQuote(quote);
-
-    return {
-        'Global Quote': {
-            '05. price': priceData.finalPrice.toString(),
-            '09. change': priceData.finalChange.toString(),
-            '10. change percent': priceData.finalChangePercent.toFixed(2) + '%'
-        },
-        extendedHours: {
-            isExtendedHours: priceData.isExtendedHours,
-            price: priceData.extendedHoursPrice,
-            change: priceData.extendedHoursChange,
-            marketState: priceData.marketState
-        },
-        companyName: quote.longName || quote.shortName || quote.symbol
-    };
-}
-
-/**
- * Parse YAML config and extract watchlist.
- * This mirrors the config loading logic in server.js
+ * Helper to parse YAML and extract config (mirrors server.js logic)
  */
 function parseConfig(yamlContent) {
     const config = yaml.load(yamlContent);
-    return {
-        watchlist: config?.watchlist || [],
-        port: config?.server?.port || 3000
-    };
+    return extractConfigSettings(config);
 }
 
 describe('Price Calculation', () => {
@@ -167,7 +106,7 @@ describe('API Response Formatting', () => {
         expect(response['Global Quote']).toBeDefined();
         expect(response['Global Quote']['05. price']).toBe('150.25');
         expect(response['Global Quote']['09. change']).toBe('1.75');
-        expect(response['Global Quote']['10. change percent']).toMatch(/^\d+\.\d{2}%$/);
+        expect(response['Global Quote']['10. change percent']).toMatch(/^-?\d+\.\d{2}%$/);
     });
 
     it('should include extended hours information', () => {
@@ -200,7 +139,7 @@ describe('API Response Formatting', () => {
     it('should format change percent with 2 decimal places and % sign', () => {
         const response = formatApiResponse(regularMarketQuote);
 
-        expect(response['Global Quote']['10. change percent']).toMatch(/^\d+\.\d{2}%$/);
+        expect(response['Global Quote']['10. change percent']).toMatch(/^-?\d+\.\d{2}%$/);
     });
 
     it('should convert price values to strings', () => {
@@ -208,6 +147,34 @@ describe('API Response Formatting', () => {
 
         expect(typeof response['Global Quote']['05. price']).toBe('string');
         expect(typeof response['Global Quote']['09. change']).toBe('string');
+    });
+});
+
+describe('Cached Response Formatting', () => {
+    it('should format cached data correctly', () => {
+        const cachedData = {
+            price: 150.25,
+            change: 1.75,
+            changePercent: 1.18
+        };
+        const response = formatCachedResponse('AAPL', cachedData);
+
+        expect(response['Global Quote']['05. price']).toBe('150.25');
+        expect(response['Global Quote']['09. change']).toBe('1.75');
+        expect(response.companyName).toBe('AAPL');
+        expect(response.fromCache).toBe(true);
+    });
+
+    it('should indicate not extended hours for cached data', () => {
+        const cachedData = {
+            price: 150.25,
+            change: 1.75,
+            changePercent: 1.18
+        };
+        const response = formatCachedResponse('AAPL', cachedData);
+
+        expect(response.extendedHours.isExtendedHours).toBe(false);
+        expect(response.extendedHours.marketState).toBe('CLOSED');
     });
 });
 

@@ -7,6 +7,7 @@ import yaml from 'js-yaml';
 import fs from 'fs';
 import { initializeDatabase, addPriceHistory, getPriceHistory } from './db.js';
 import { networkInterfaces } from 'os';
+import { calculatePriceFromQuote, formatApiResponse, formatCachedResponse } from './lib/priceCalculation.js';
 
 const app = express();
 
@@ -101,39 +102,24 @@ function calculateUpdateSchedule() {
     async function updateStock(symbol) {
         try {
             const quote = await yahooFinance.quote(symbol);
-            
-            const regularPrice = quote.regularMarketPrice;
-            const previousClose = quote.regularMarketPreviousClose;
-            const regularChange = quote.regularMarketChange;
-            const regularChangePercent = quote.regularMarketChangePercent;
-            
-            // Get pre/post market data if available
-            const isPreMarket = quote.preMarketPrice !== undefined;
-            const isPostMarket = quote.postMarketPrice !== undefined;
-            const extendedPrice = isPreMarket ? quote.preMarketPrice : (isPostMarket ? quote.postMarketPrice : null);
-            const extendedChange = isPreMarket ? quote.preMarketChange : (isPostMarket ? quote.postMarketChange : null);
-            
-            // Calculate final values
-            const finalPrice = extendedPrice || regularPrice;
-            const finalChange = (extendedPrice ? extendedChange + regularChange : regularChange) || 0;
-            const finalChangePercent = (finalChange / previousClose) * 100;
+            const priceData = calculatePriceFromQuote(quote);
 
             // Store in database
-            await addPriceHistory(db, symbol, finalPrice, finalChange, finalChangePercent);
-            
+            await addPriceHistory(db, symbol, priceData.finalPrice, priceData.finalChange, priceData.finalChangePercent);
+
             console.log(`Updated ${symbol} at ${new Date().toLocaleTimeString()}`);
-            
+
             return {
-                price: finalPrice,
-                change: finalChange,
-                changePercent: finalChangePercent,
-                regularMarketPrice: regularPrice,
-                regularMarketChange: regularChange,
-                regularMarketChangePercent: regularChangePercent,
-                isExtendedHours: isPreMarket || isPostMarket,
-                extendedHoursPrice: extendedPrice,
-                extendedHoursChange: extendedChange,
-                marketState: quote.marketState
+                price: priceData.finalPrice,
+                change: priceData.finalChange,
+                changePercent: priceData.finalChangePercent,
+                regularMarketPrice: priceData.regularMarketPrice,
+                regularMarketChange: priceData.regularMarketChange,
+                regularMarketChangePercent: priceData.regularMarketChangePercent,
+                isExtendedHours: priceData.isExtendedHours,
+                extendedHoursPrice: priceData.extendedHoursPrice,
+                extendedHoursChange: priceData.extendedHoursChange,
+                marketState: priceData.marketState
             };
         } catch (error) {
             console.error(`Error updating ${symbol}:`, error);
@@ -163,65 +149,19 @@ app.get('/api/stock/:symbol', async (req, res) => {
     try {
         const { symbol } = req.params;
         const data = await yahooFinance.quote(symbol);
-        
+
         if (!data) {
             // If live data fetch fails, try to return cached data from database
             const cachedData = latestPrices.get(symbol);
             if (cachedData) {
-                const response = {
-                    'Global Quote': {
-                        '05. price': cachedData.price.toString(),
-                        '09. change': cachedData.change.toString(),
-                        '10. change percent': cachedData.changePercent.toFixed(2) + '%'
-                    },
-                    extendedHours: {
-                        isExtendedHours: false,
-                        price: null,
-                        change: null,
-                        marketState: 'CLOSED'
-                    },
-                    companyName: symbol,
-                    fromCache: true
-                };
-                res.json(response);
+                res.json(formatCachedResponse(symbol, cachedData));
                 return;
             }
             res.status(500).json({ error: 'Failed to fetch stock data' });
             return;
         }
 
-        const regularPrice = data.regularMarketPrice;
-        const previousClose = data.regularMarketPreviousClose;
-        const regularChange = data.regularMarketChange;
-        
-        // Get pre/post market data if available
-        const isPreMarket = data.preMarketPrice !== undefined;
-        const isPostMarket = data.postMarketPrice !== undefined;
-        const extendedPrice = isPreMarket ? data.preMarketPrice : (isPostMarket ? data.postMarketPrice : null);
-        const extendedChange = isPreMarket ? data.preMarketChange : (isPostMarket ? data.postMarketChange : null);
-        
-        // Calculate final values
-        const finalPrice = extendedPrice || regularPrice;
-        const finalChange = (extendedPrice ? extendedChange + regularChange : regularChange) || 0;
-        const finalChangePercent = (finalChange / previousClose) * 100;
-
-        // Format the response to match our frontend expectations
-        const response = {
-            'Global Quote': {
-                '05. price': finalPrice.toString(),
-                '09. change': finalChange.toString(),
-                '10. change percent': finalChangePercent.toFixed(2) + '%'
-            },
-            extendedHours: {
-                isExtendedHours: isPreMarket || isPostMarket,
-                price: extendedPrice,
-                change: extendedChange,
-                marketState: data.marketState
-            },
-            companyName: data.longName || data.shortName || symbol
-        };
-
-        res.json(response);
+        res.json(formatApiResponse(data));
     } catch (error) {
         console.error('Error fetching stock data:', error);
         res.status(500).json({ error: 'Failed to fetch stock data' });
