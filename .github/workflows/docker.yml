@@ -18,6 +18,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Lowercase repo name
+      run: echo "REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -29,7 +32,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ghcr.io/${{ github.repository }}
+        images: ghcr.io/${{ env.REPO }}
         tags: |
           type=raw,value=latest
           type=sha,prefix=
@@ -48,7 +51,7 @@ jobs:
         # Start container in background
         docker run -d --name test-container -p 3000:3000 \
           -v ${{ github.workspace }}/example.config.yaml:/app/config.yaml \
-          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ env.REPO }}:latest
 
         # Wait for startup
         sleep 5
