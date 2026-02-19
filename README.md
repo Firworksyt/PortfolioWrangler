@@ -112,7 +112,7 @@ The Docker container uses the following volume mounts:
 
 - `/app/config.yaml` - Your watchlist configuration file
 - `/app/data` - SQLite database directory for persistent historical data
-- `/app/.env` (optional) - Environment variables file
+- `/app/.env` (optional) - Environment variables file (e.g., to override the PORT setting)
 
 ## Configuration
 
