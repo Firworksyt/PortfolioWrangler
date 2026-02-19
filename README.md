@@ -40,6 +40,80 @@ npm start
 
 5. Open your browser to `http://localhost:3000` (or your configured port)
 
+## Docker Deployment
+
+PortfolioWrangler is available as a Docker container, published automatically with each change to the master branch.
+
+### Using Pre-built Images
+
+Pull and run the latest image from GitHub Container Registry:
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/firworksyt/portfoliowrangler:latest
+
+# Create a config.yaml file (or copy example.config.yaml)
+cp example.config.yaml config.yaml
+
+# Run the container
+docker run -d \
+  -p 3000:3000 \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  -v $(pwd)/data:/app/data \
+  --name portfoliowrangler \
+  ghcr.io/firworksyt/portfoliowrangler:latest
+```
+
+The container will be available at `http://localhost:3000`
+
+### Using Docker Compose
+
+The easiest way to run PortfolioWrangler with Docker:
+
+```bash
+# Clone the repository (to get docker-compose.yml)
+git clone https://github.com/Firworksyt/PortfolioWrangler.git
+cd PortfolioWrangler
+
+# Create your configuration
+cp example.config.yaml config.yaml
+# Edit config.yaml with your preferred stocks
+
+# Start the service
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the service
+docker-compose down
+```
+
+### Building Locally
+
+If you prefer to build the Docker image yourself:
+
+```bash
+# Build the image
+docker build -t portfoliowrangler .
+
+# Run the container
+docker run -d \
+  -p 3000:3000 \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  -v $(pwd)/data:/app/data \
+  --name portfoliowrangler \
+  portfoliowrangler
+```
+
+### Volume Mounts
+
+The Docker container uses the following volume mounts:
+
+- `/app/config.yaml` - Your watchlist configuration file
+- `/app/data` - SQLite database directory for persistent historical data
+- `/app/.env` (optional) - Environment variables file
+
 ## Configuration
 
 Copy `example.config.yaml` to `config.yaml` and customize it:
