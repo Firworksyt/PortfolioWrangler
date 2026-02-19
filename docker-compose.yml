@@ -2,7 +2,11 @@ version: '3.8'
 
 services:
   stock-dashboard:
-    build: .
+    build:
+      context: .
+      args:
+        COMMIT_HASH: ${COMMIT_HASH:-unknown}
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-}
     ports:
       - "3000:3000"
     volumes:

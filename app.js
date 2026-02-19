@@ -3,6 +3,7 @@ const REFRESH_INTERVAL = 1 * 60 * 1000; // Refresh every 5 minutes
 let lastRefreshTime = {};
 let lastPrices = {};
 let priceChart = null;
+let currentWatchlistVersion = null;
 
 // Dark mode initialization
 const darkModeToggle = document.getElementById('darkModeToggle');
@@ -33,7 +34,7 @@ function updateChartTheme() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     Chart.defaults.color = isDark ? '#e5e7eb' : '#1f2937';
     Chart.defaults.borderColor = isDark ? '#404040' : '#e5e7eb';
-    
+
     if (priceChart) {
         priceChart.options.scales.x.grid.color = isDark ? '#404040' : '#e5e7eb';
         priceChart.options.scales.y.grid.color = isDark ? '#404040' : '#e5e7eb';
@@ -54,28 +55,34 @@ window.onclick = (event) => {
     }
 };
 
+function createStockCard(symbol) {
+    const stockCard = document.createElement('div');
+    stockCard.className = 'stock-card';
+    stockCard.setAttribute('data-symbol', symbol);
+    stockCard.onclick = () => showPriceHistory(symbol);
+    stockCard.innerHTML = `
+        <h2>${symbol}</h2>
+        <div class="company-name">Loading...</div>
+        <div class="stock-price">Loading...</div>
+        <div class="stock-details">
+            <div class="change-info">Loading...</div>
+            <div class="last-updated">Loading...</div>
+        </div>
+    `;
+    return stockCard;
+}
+
 async function loadWatchlist() {
     try {
         const response = await fetch('/api/watchlist');
         const data = await response.json();
         stocks = data.watchlist;
-        
+        currentWatchlistVersion = data.watchlistVersion;
+
         // Initialize the stock cards
+        const container = document.getElementById('stocks-container');
         stocks.forEach(symbol => {
-            const container = document.getElementById('stocks-container');
-            const stockCard = document.createElement('div');
-            stockCard.className = 'stock-card';
-            stockCard.setAttribute('data-symbol', symbol);
-            stockCard.onclick = () => showPriceHistory(symbol);
-            stockCard.innerHTML = `
-                <h2>${symbol}</h2>
-                <div class="company-name">Loading...</div>
-                <div class="stock-price">Loading...</div>
-                <div class="stock-details">
-                    <div class="change-info">Loading...</div>
-                    <div class="last-updated">Loading...</div>
-                </div>
-            `;
+            const stockCard = createStockCard(symbol);
             container.appendChild(stockCard);
 
             // If we have initial price data, display it immediately
@@ -84,11 +91,44 @@ async function loadWatchlist() {
                 displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName);
             }
         });
-        
+
         // Start fetching live prices
         fetchAllStockPrices();
     } catch (error) {
         console.error('Error loading watchlist:', error);
+    }
+}
+
+async function checkWatchlistChanges() {
+    try {
+        const response = await fetch('/api/watchlist');
+        const data = await response.json();
+
+        if (data.watchlistVersion !== currentWatchlistVersion) {
+            console.log('Watchlist changed, rebuilding...');
+            currentWatchlistVersion = data.watchlistVersion;
+            stocks = data.watchlist;
+
+            // Clear and rebuild stock cards
+            const container = document.getElementById('stocks-container');
+            container.innerHTML = '';
+            lastRefreshTime = {};
+            lastPrices = {};
+
+            stocks.forEach(symbol => {
+                const stockCard = createStockCard(symbol);
+                container.appendChild(stockCard);
+
+                if (data.initialPrices && data.initialPrices[symbol]) {
+                    const initialData = data.initialPrices[symbol];
+                    displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName);
+                }
+            });
+
+            fetchAllStockPrices();
+        }
+    } catch (error) {
+        console.error('Error checking watchlist changes:', error);
     }
 }
 
@@ -100,7 +140,7 @@ async function fetchStockPrice(symbol) {
             return;
         }
         const data = await response.json();
-        
+
         if (data['Global Quote']) {
             const quote = data['Global Quote'];
             // Always update the refresh time when we get new data
@@ -125,10 +165,10 @@ async function displayStockPrice(symbol, quote, companyName) {
     const changePercent = parseFloat(quote['10. change percent']);
     const lastUpdate = lastRefreshTime[symbol] || new Date();
     const previousPrice = lastPrices[symbol];
-    
+
     // Update the last known price
     lastPrices[symbol] = price;
-    
+
     // Update company name if available
     const companyNameElement = stockCard.querySelector('.company-name');
     companyNameElement.textContent = companyName || symbol;
@@ -154,7 +194,7 @@ async function displayStockPrice(symbol, quote, companyName) {
     // Update last refresh time
     const lastUpdatedElement = stockCard.querySelector('.last-updated');
     lastUpdatedElement.textContent = `Last updated: ${lastUpdate.toLocaleTimeString()}`;
-    
+
     // Add cached data indicator if the data is from cache
     if (quote.fromCache) {
         lastUpdatedElement.textContent += ' (cached)';
@@ -262,9 +302,28 @@ function fetchAllStockPrices() {
     }
 }
 
+async function loadVersion() {
+    try {
+        const response = await fetch('/api/version');
+        const data = await response.json();
+        const el = document.getElementById('version-info');
+        if (el && data.commitHash) {
+            const date = new Date(data.buildTimestamp);
+            const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            el.textContent = `v${data.commitHash} \u00b7 ${formatted}`;
+        }
+    } catch (error) {
+        console.error('Error loading version:', error);
+    }
+}
+
 // Initial load
 initializeDarkMode();
 loadWatchlist();
+loadVersion();
 
-// Auto-refresh
-setInterval(fetchAllStockPrices, REFRESH_INTERVAL);
+// Auto-refresh — also checks for watchlist changes
+setInterval(() => {
+    checkWatchlistChanges();
+    fetchAllStockPrices();
+}, REFRESH_INTERVAL);

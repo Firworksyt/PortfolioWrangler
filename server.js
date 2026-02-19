@@ -3,11 +3,12 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import YahooFinance from 'yahoo-finance2';
-import yaml from 'js-yaml';
 import fs from 'fs';
 import { initializeDatabase, addPriceHistory, getPriceHistory } from './db.js';
 import { networkInterfaces } from 'os';
 import { calculatePriceFromQuote, formatApiResponse, formatCachedResponse } from './lib/priceCalculation.js';
+import { parseConfigFile, diffWatchlist } from './lib/configLoader.js';
+import { getAppVersion } from './lib/version.js';
 
 const app = express();
 
@@ -15,32 +16,67 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load configuration with better error handling
+// Version info (resolved once at startup)
+const appVersion = getAppVersion({ dirname: __dirname, env: process.env });
+console.log(`App version: ${appVersion.commitHash} (built ${appVersion.buildTimestamp})`);
+
+// Config state
+const configPath = path.join(__dirname, 'config.yaml');
 let watchlist = [];
 let config;
-try {
-    // Read and parse the YAML file
-    const configPath = path.join(__dirname, 'config.yaml');
-    const configFile = fs.readFileSync(configPath, 'utf8');
-    config = yaml.load(configFile);
-    
-    // Extract and validate watchlist with a default empty array
-    watchlist = config?.watchlist || [];
-    
-    // Log success with more detailed information
-    console.log('Successfully loaded configuration file');
-    console.log('Loaded watchlist contains', watchlist.length, 'items:', watchlist);
-} catch (error) {
-    // Provide more specific error handling
-    if (error.code === 'ENOENT') {
-        console.error('Configuration file not found at:', path.join(__dirname, 'config.yaml'));
-    } else if (error instanceof yaml.YAMLException) {
-        console.error('YAML parsing error in config file:', error.message);
-    } else {
-        console.error('Unexpected error loading config:', error.message);
+let watchlistVersion = 0;
+
+// Load (or reload) the configuration file
+function loadConfig({ initial = false } = {}) {
+    try {
+        const result = parseConfigFile(configPath);
+        const newWatchlist = result.watchlist;
+        const newConfig = result.config;
+
+        if (!initial) {
+            const diff = diffWatchlist(watchlist, newWatchlist);
+            if (!diff.changed) {
+                console.log('Config file changed but watchlist is identical, skipping reload');
+                return;
+            }
+            console.log(`Watchlist changed — added: [${diff.added}], removed: [${diff.removed}]`);
+
+            // Clean up latestPrices for removed symbols
+            for (const symbol of diff.removed) {
+                latestPrices.delete(symbol);
+            }
+
+            // Load initial prices for newly added symbols
+            loadInitialPricesForSymbols(diff.added);
+        }
+
+        watchlist = newWatchlist;
+        config = newConfig;
+        watchlistVersion++;
+
+        console.log('Successfully loaded configuration file');
+        console.log('Loaded watchlist contains', watchlist.length, 'items:', watchlist);
+
+        // Restart the update loop with the new watchlist
+        calculateUpdateSchedule();
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            console.error('Configuration file not found at:', configPath);
+        } else if (error.name === 'YAMLException') {
+            console.error('YAML parsing error in config file:', error.message);
+        } else {
+            console.error('Unexpected error loading config:', error.message);
+        }
+
+        if (initial) {
+            process.exit(1);
+        }
+        // On reload failure, keep existing config running
     }
-    process.exit(1);
 }
+
+// Initial config load (exits on failure)
+loadConfig({ initial: true });
 
 const PORT = process.env.PORT || config.server?.port || 3000;
 
@@ -51,18 +87,8 @@ const yahooFinance = new YahooFinance();
 let db;
 let latestPrices = new Map();
 
-(async () => {
-    // Ensure data directory exists for Docker volume
-    const dataDir = path.join(__dirname, 'data');
-    if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir);
-    }
-    
-    db = await initializeDatabase();
-    console.log('Database initialized');
-
-    // Load initial prices for all watchlist symbols
-    for (const symbol of watchlist) {
+async function loadInitialPricesForSymbols(symbols) {
+    for (const symbol of symbols) {
         try {
             const history = await getPriceHistory(db, symbol);
             if (history && history.length > 0) {
@@ -79,6 +105,20 @@ let latestPrices = new Map();
             console.error(`Error loading initial price for ${symbol}:`, error);
         }
     }
+}
+
+(async () => {
+    // Ensure data directory exists for Docker volume
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir);
+    }
+
+    db = await initializeDatabase();
+    console.log('Database initialized');
+
+    // Load initial prices for all watchlist symbols
+    await loadInitialPricesForSymbols(watchlist);
 })();
 
 // Request scheduling
@@ -132,7 +172,7 @@ function calculateUpdateSchedule() {
     updateInterval = setInterval(async () => {
         const symbol = watchlist[currentIndex];
         await updateStock(symbol);
-        
+
         currentIndex = (currentIndex + 1) % stockCount;
     }, UPDATE_INTERVAL);
 
@@ -197,20 +237,63 @@ app.get('/api/watchlist', (req, res) => {
             };
         }
     }
-    
-    res.json({ 
+
+    res.json({
         watchlist,
-        initialPrices
+        initialPrices,
+        watchlistVersion
     });
+});
+
+// Version endpoint
+app.get('/api/version', (req, res) => {
+    res.json(appVersion);
 });
 
 // Start the update schedule
 calculateUpdateSchedule();
 
+// Watch config file for changes
+function watchConfigFile() {
+    let debounceTimer = null;
+
+    function onConfigChange() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            console.log('Config file change detected, reloading...');
+            loadConfig();
+        }, 500);
+    }
+
+    function startWatcher() {
+        try {
+            const watcher = fs.watch(configPath, (eventType) => {
+                if (eventType === 'rename') {
+                    // File was replaced (atomic save) — re-establish watcher
+                    watcher.close();
+                    setTimeout(startWatcher, 100);
+                }
+                onConfigChange();
+            });
+
+            watcher.on('error', (err) => {
+                console.error('Config watcher error:', err.message);
+                watcher.close();
+                setTimeout(startWatcher, 5000);
+            });
+        } catch (err) {
+            console.error('Failed to watch config file:', err.message);
+            setTimeout(startWatcher, 5000);
+        }
+    }
+
+    startWatcher();
+}
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
-    
+
     // Get local IP address for easy mobile testing
     const nets = networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -221,4 +304,7 @@ app.listen(PORT, '0.0.0.0', () => {
             }
         }
     }
+
+    // Start watching config file for hot-reload
+    watchConfigFile();
 });

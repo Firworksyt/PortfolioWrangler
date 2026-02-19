@@ -365,3 +365,21 @@ button:hover {
     color: #666;
     font-size: 0.8em;
 }
+
+/* Version footer */
+.version-footer {
+    text-align: center;
+    padding: 1.5rem 0 0.5rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.version-footer:hover {
+    opacity: 1;
+}
+
+[data-theme="dark"] .version-footer {
+    color: #6b7280;
+}

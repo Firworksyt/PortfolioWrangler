@@ -43,6 +43,10 @@ jobs:
           type=raw,value=latest
           type=sha,prefix=
 
+    - name: Set build metadata
+      run: |
+        echo "BUILD_TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
     - name: Build amd64 image for smoke test
       uses: docker/build-push-action@v5
       with:
@@ -51,6 +55,9 @@ jobs:
         push: false
         load: true
         tags: ghcr.io/${{ env.REPO }}:test
+        build-args: |
+          COMMIT_HASH=${{ github.sha }}
+          BUILD_TIMESTAMP=${{ env.BUILD_TIMESTAMP }}
 
     - name: Smoke test container
       run: |
@@ -79,3 +86,6 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          COMMIT_HASH=${{ github.sha }}
+          BUILD_TIMESTAMP=${{ env.BUILD_TIMESTAMP }}
