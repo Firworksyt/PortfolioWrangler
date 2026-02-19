@@ -23,8 +23,8 @@ describe('Server startup', () => {
         if (serverProc && !serverProc.killed) {
             serverProc.kill();
         }
-        if (createdConfig) {
-            try { fs.unlinkSync(configPath); } catch {}
+        if (createdConfig && fs.existsSync(configPath)) {
+            fs.unlinkSync(configPath);
         }
     });
 
@@ -76,8 +76,7 @@ describe('Server startup', () => {
         });
 
         if (!result.started) {
-            // Include captured output in the failure message for debugging
-            fail(
+            throw new Error(
                 `Server failed to start (${result.reason}).\n` +
                 `stdout: ${result.stdout}\n` +
                 `stderr: ${result.stderr}`
