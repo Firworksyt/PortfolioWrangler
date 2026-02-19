@@ -57,8 +57,10 @@ function loadConfig({ initial = false } = {}) {
         console.log('Successfully loaded configuration file');
         console.log('Loaded watchlist contains', watchlist.length, 'items:', watchlist);
 
-        // Restart the update loop with the new watchlist
-        calculateUpdateSchedule();
+        // Restart the update loop on reload (initial schedule is started at module level)
+        if (!initial) {
+            calculateUpdateSchedule();
+        }
     } catch (error) {
         if (error.code === 'ENOENT') {
             console.error('Configuration file not found at:', configPath);
