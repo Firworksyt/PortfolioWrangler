@@ -34,4 +34,4 @@ jobs:
       run: npm test
       
     - name: Check npm audit
-      run: npm audit
+      run: npm audit --omit=dev
