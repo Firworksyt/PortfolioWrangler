@@ -27,7 +27,7 @@ jobs:
           args: --severity-threshold=high
           
       - name: Run npm audit
-        run: npm audit --audit-level=high
+        run: npm audit
         
   codeql:
     runs-on: ubuntu-latest
