@@ -1,15 +1,16 @@
 let stocks = [];
-const REFRESH_INTERVAL = 1 * 60 * 1000; // Refresh every 5 minutes
+const REFRESH_INTERVAL = 1 * 60 * 1000; // Refresh every minute
 let lastRefreshTime = {};
 let lastPrices = {};
 let priceChart = null;
 let currentWatchlistVersion = null;
+let currentHistoryData = [];
+let currentHistorySymbol = null;
 
 // Dark mode initialization
 const darkModeToggle = document.getElementById('darkModeToggle');
 const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
 
-// Initialize dark mode from localStorage or system preference
 function initializeDarkMode() {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
@@ -20,7 +21,6 @@ function initializeDarkMode() {
     updateChartTheme();
 }
 
-// Toggle dark mode
 darkModeToggle.addEventListener('click', () => {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -29,7 +29,6 @@ darkModeToggle.addEventListener('click', () => {
     updateChartTheme();
 });
 
-// Update chart colors based on theme
 function updateChartTheme() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     Chart.defaults.color = isDark ? '#e5e7eb' : '#1f2937';
@@ -37,7 +36,7 @@ function updateChartTheme() {
 
     if (priceChart) {
         priceChart.options.scales.x.grid.color = isDark ? '#404040' : '#e5e7eb';
-        priceChart.options.scales.y.grid.color = isDark ? '#404040' : '#e5e7eb';
+        priceChart.options.scales.y.grid.color = isDark ? '#404040' : 'rgba(0,0,0,0.05)';
         priceChart.update();
     }
 }
@@ -47,13 +46,91 @@ const modal = document.getElementById('chart-modal');
 const closeBtn = document.getElementsByClassName('close')[0];
 const chartTitle = document.getElementById('chart-title');
 
-// Close modal when clicking X or outside
 closeBtn.onclick = () => modal.style.display = 'none';
 window.onclick = (event) => {
-    if (event.target === modal) {
-        modal.style.display = 'none';
-    }
+    if (event.target === modal) modal.style.display = 'none';
 };
+
+// Range buttons
+document.querySelectorAll('.range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const hours = btn.dataset.hours ? parseFloat(btn.dataset.hours) : null;
+        renderChart(filterByHours(currentHistoryData, hours));
+    });
+});
+
+function filterByHours(data, hours) {
+    if (!hours) return data;
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+    return data.filter(d => new Date(d.timestamp) >= cutoff);
+}
+
+function formatChartLabel(timestamp, spansMultipleDays) {
+    const date = new Date(timestamp);
+    if (spansMultipleDays) {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function renderChart(data) {
+    if (data.length === 0) return;
+
+    const first = new Date(data[0].timestamp);
+    const last = new Date(data[data.length - 1].timestamp);
+    const spansMultipleDays = first.toDateString() !== last.toDateString();
+
+    const labels = data.map(d => formatChartLabel(d.timestamp, spansMultipleDays));
+    const prices = data.map(d => d.price);
+
+    if (priceChart) priceChart.destroy();
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: `${currentHistorySymbol} Price`,
+                data: prices,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 2,
+                pointRadius: 1,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    ticks: {
+                        maxTicksLimit: 8,
+                        maxRotation: 0
+                    },
+                    grid: { display: false }
+                },
+                y: {
+                    display: true,
+                    title: { display: true, text: 'Price ($)' },
+                    grid: {
+                        color: isDark ? '#404040' : 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            },
+            interaction: { intersect: false, mode: 'index' }
+        }
+    });
+}
 
 function createStockCard(symbol) {
     const stockCard = document.createElement('div');
@@ -79,20 +156,17 @@ async function loadWatchlist() {
         stocks = data.watchlist;
         currentWatchlistVersion = data.watchlistVersion;
 
-        // Initialize the stock cards
         const container = document.getElementById('stocks-container');
         stocks.forEach(symbol => {
             const stockCard = createStockCard(symbol);
             container.appendChild(stockCard);
 
-            // If we have initial price data, display it immediately
             if (data.initialPrices && data.initialPrices[symbol]) {
                 const initialData = data.initialPrices[symbol];
                 displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName);
             }
         });
 
-        // Start fetching live prices
         fetchAllStockPrices();
     } catch (error) {
         console.error('Error loading watchlist:', error);
@@ -109,7 +183,6 @@ async function checkWatchlistChanges() {
             currentWatchlistVersion = data.watchlistVersion;
             stocks = data.watchlist;
 
-            // Clear and rebuild stock cards
             const container = document.getElementById('stocks-container');
             container.innerHTML = '';
             lastRefreshTime = {};
@@ -142,10 +215,8 @@ async function fetchStockPrice(symbol) {
         const data = await response.json();
 
         if (data['Global Quote']) {
-            const quote = data['Global Quote'];
-            // Always update the refresh time when we get new data
             lastRefreshTime[symbol] = new Date();
-            displayStockPrice(symbol, quote, data.companyName);
+            displayStockPrice(symbol, data['Global Quote'], data.companyName);
         } else if (data.error) {
             console.error('API Error:', data.error);
         } else {
@@ -166,14 +237,11 @@ async function displayStockPrice(symbol, quote, companyName) {
     const lastUpdate = lastRefreshTime[symbol] || new Date();
     const previousPrice = lastPrices[symbol];
 
-    // Update the last known price
     lastPrices[symbol] = price;
 
-    // Update company name if available
     const companyNameElement = stockCard.querySelector('.company-name');
     companyNameElement.textContent = companyName || symbol;
 
-    // Update price with animation
     const priceElement = stockCard.querySelector('.stock-price');
     priceElement.textContent = `$${price.toFixed(2)}`;
     if (previousPrice) {
@@ -185,17 +253,18 @@ async function displayStockPrice(symbol, quote, companyName) {
         }
     }
 
-    // Update change info
     const changeInfoElement = stockCard.querySelector('.change-info');
+    const arrow = change >= 0 ? '▲' : '▼';
     const changeText = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent.toFixed(2)}%)`;
-    changeInfoElement.textContent = changeText;
+    changeInfoElement.textContent = `${arrow} ${changeText}`;
     changeInfoElement.className = 'change-info ' + (change >= 0 ? 'positive' : 'negative');
 
-    // Update last refresh time
-    const lastUpdatedElement = stockCard.querySelector('.last-updated');
-    lastUpdatedElement.textContent = `Last updated: ${lastUpdate.toLocaleTimeString()}`;
+    stockCard.classList.remove('card-positive', 'card-negative');
+    if (change > 0) stockCard.classList.add('card-positive');
+    else if (change < 0) stockCard.classList.add('card-negative');
 
-    // Add cached data indicator if the data is from cache
+    const lastUpdatedElement = stockCard.querySelector('.last-updated');
+    lastUpdatedElement.textContent = `Updated ${lastUpdate.toLocaleTimeString()}`;
     if (quote.fromCache) {
         lastUpdatedElement.textContent += ' (cached)';
         stockCard.classList.add('cached');
@@ -214,80 +283,18 @@ async function showPriceHistory(symbol) {
             return;
         }
 
-        // Prepare data for the chart
-        const data = history.reverse();
-        const labels = data.map(d => new Date(d.timestamp).toLocaleString());
-        const prices = data.map(d => d.price);
+        currentHistoryData = history.reverse(); // oldest → newest
+        currentHistorySymbol = symbol;
 
-        // Update chart
-        if (priceChart) {
-            priceChart.destroy();
-        }
-
-        const ctx = document.getElementById('priceChart').getContext('2d');
-        priceChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: `${symbol} Price`,
-                    data: prices,
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 1,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: `${symbol} - ${symbol}`,
-                        font: {
-                            size: 16,
-                            weight: 'bold'
-                        }
-                    },
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    x: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: 'Time'
-                        },
-                        grid: {
-                            display: false
-                        }
-                    },
-                    y: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: 'Price ($)'
-                        },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
-                    }
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                }
-            }
-        });
-
-        // Show modal
         chartTitle.textContent = `${symbol} Price History`;
+
+        // Reset range buttons to "All"
+        document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+        const allBtn = document.querySelector('.range-btn[data-hours=""]');
+        if (allBtn) allBtn.classList.add('active');
+
         modal.style.display = 'block';
+        renderChart(currentHistoryData);
     } catch (error) {
         console.error('Error fetching price history:', error);
         alert('Error loading price history');
@@ -295,11 +302,9 @@ async function showPriceHistory(symbol) {
 }
 
 function fetchAllStockPrices() {
-    if (stocks.length > 0) {
-        stocks.forEach((symbol, index) => {
-            setTimeout(() => fetchStockPrice(symbol), index * 1000);
-        });
-    }
+    stocks.forEach((symbol, index) => {
+        setTimeout(() => fetchStockPrice(symbol), index * 1000);
+    });
 }
 
 async function loadVersion() {

@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Dashboard</title>
+    <title>Portfolio Wrangler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,7 +14,10 @@
 <body>
     <div class="dashboard">
         <div class="header">
-            <h1>Stock Dashboard</h1>
+            <div class="header-title">
+                <i class="fas fa-chart-line header-icon"></i>
+                <h1>Portfolio Wrangler</h1>
+            </div>
             <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle Dark Mode">
                 <i class="fas fa-blind"></i>
             </button>
@@ -24,16 +30,26 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="chart-title">Price History</h2>
-                <span class="close">&times;</span>
+                <span class="close" role="button" aria-label="Close">&times;</span>
             </div>
             <div class="modal-body">
+                <div class="chart-range-buttons">
+                    <button class="range-btn active" data-hours="">All</button>
+                    <button class="range-btn" data-hours="24">1D</button>
+                    <button class="range-btn" data-hours="4">4H</button>
+                    <button class="range-btn" data-hours="1">1H</button>
+                </div>
                 <canvas id="priceChart"></canvas>
             </div>
         </div>
     </div>
 
-    <footer id="version-footer" class="version-footer">
+    <footer class="version-footer">
         <span id="version-info"></span>
+        <a href="https://github.com/Firworksyt/PortfolioWrangler" class="footer-github" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-github"></i>
+            Firworksyt/PortfolioWrangler
+        </a>
     </footer>
 
     <script src="app.js"></script>
