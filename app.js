@@ -6,6 +6,7 @@ let priceChart = null;
 let currentWatchlistVersion = null;
 let currentHistoryData = [];
 let currentHistorySymbol = null;
+let initialCommitHash = null;
 
 // Dark mode initialization
 const darkModeToggle = document.getElementById('darkModeToggle');
@@ -316,10 +317,33 @@ async function loadVersion() {
             const date = new Date(data.buildTimestamp);
             const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             el.textContent = `v${data.commitHash} \u00b7 ${formatted}`;
+            initialCommitHash = data.commitHash;
         }
     } catch (error) {
         console.error('Error loading version:', error);
     }
+}
+
+async function checkForUpdates() {
+    if (!initialCommitHash) return;
+    try {
+        const response = await fetch('/api/version');
+        const data = await response.json();
+        if (data.commitHash && data.commitHash !== initialCommitHash) {
+            showUpdateToast();
+        }
+    } catch {
+        // Server may be mid-restart; will check again next interval
+    }
+}
+
+function showUpdateToast() {
+    const toast = document.createElement('div');
+    toast.className = 'update-toast';
+    toast.innerHTML = '<i class="fas fa-arrows-rotate"></i> New version deployed — refreshing...';
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+    setTimeout(() => window.location.reload(), 4000);
 }
 
 // Initial load
@@ -327,8 +351,9 @@ initializeDarkMode();
 loadWatchlist();
 loadVersion();
 
-// Auto-refresh — also checks for watchlist changes
+// Auto-refresh — also checks for watchlist changes and new deployments
 setInterval(() => {
     checkWatchlistChanges();
     fetchAllStockPrices();
+    checkForUpdates();
 }, REFRESH_INTERVAL);

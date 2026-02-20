@@ -43,7 +43,7 @@ export async function addPriceHistory(db, symbol, price, change, changePercent) 
 }
 
 // Get price history for a symbol
-export async function getPriceHistory(db, symbol, limit = 1000) {
+export async function getPriceHistory(db, symbol, limit = 5000) {
     return await db.all(
         `SELECT * FROM price_history 
          WHERE symbol = ? 

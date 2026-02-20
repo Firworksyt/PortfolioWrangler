@@ -124,7 +124,7 @@ async function loadInitialPricesForSymbols(symbols) {
 })();
 
 // Request scheduling
-const UPDATE_INTERVAL = 1000; // 10 seconds between each stock update
+const UPDATE_INTERVAL = 10000; // 10 seconds between each stock update
 let updateInterval;
 
 function calculateUpdateSchedule() {

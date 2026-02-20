@@ -110,11 +110,11 @@ describe('Database Module', () => {
             expect(history).toEqual([]);
         });
 
-        it('should use default limit of 1000', async () => {
+        it('should use default limit of 5000', async () => {
             // This test verifies the default limit doesn't break with small datasets
             const history = await getPriceHistory(db, 'AAPL');
 
-            expect(history.length).toBeLessThanOrEqual(1000);
+            expect(history.length).toBeLessThanOrEqual(5000);
             expect(history).toHaveLength(3);
         });
     });
