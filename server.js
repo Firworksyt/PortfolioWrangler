@@ -51,11 +51,24 @@ const EXCHANGE_DISPLAY = {
     TSX: 'TSX', SAO: 'B3',
 };
 
-// OTC/Pink Sheet codes are skipped entirely. ADRs like RYCEY/TOTDY trade on
+// OTC/Pink Sheet exchanges are skipped entirely. ADRs like RYCEY/TOTDY trade on
 // these during US hours — identical to NYSE/NASDAQ hours already shown — so
 // an "OTC Markets" pill is redundant and misleading (users expect the
 // underlying exchange, e.g. London or Tokyo, not a US OTC wrapper).
-const SKIP_EXCHANGES = new Set(['PNK', 'OTCPK', 'OTCQB', 'OTCQX', 'OBB', 'OTC']);
+// Yahoo Finance uses several codes for OTC tiers; we catch them by code and
+// also by fullExchangeName as a fallback for any codes not listed here.
+const SKIP_EXCHANGES = new Set([
+    'PNK',     // OTC Pink tier
+    'OQB',     // OTC OTCQB tier
+    'OTCMKTS', // generic OTC Markets code
+    'OTCPK', 'OTCQB', 'OTCQX', 'OBB', 'OTC', 'OTCBB',
+]);
+
+function isOtcExchange(exchange, fullExchangeName) {
+    if (SKIP_EXCHANGES.has(exchange)) return true;
+    const name = fullExchangeName ?? '';
+    return name.includes('OTC') || name.toLowerCase().includes('pink');
+}
 
 // Load (or reload) the configuration file
 function loadConfig({ initial = false } = {}) {
@@ -207,7 +220,7 @@ function calculateUpdateSchedule() {
 
     function recordStockResult(symbol, result) {
         latestPrices.set(symbol, result);
-        if (result.exchange && result.marketState && !SKIP_EXCHANGES.has(result.exchange)) {
+        if (result.exchange && result.marketState && !isOtcExchange(result.exchange, result.fullExchangeName)) {
             const displayName = EXCHANGE_DISPLAY[result.exchange] ?? result.fullExchangeName ?? result.exchange;
             marketStates.set(displayName, { displayName, marketState: result.marketState });
         }
