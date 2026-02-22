@@ -18,10 +18,17 @@
                 <i class="fas fa-chart-line header-icon"></i>
                 <h1>Portfolio Wrangler</h1>
             </div>
+            <div class="sort-controls">
+                <button class="sort-btn active" data-sort="default">Default</button>
+                <button class="sort-btn" data-sort="gainers">Gainers</button>
+                <button class="sort-btn" data-sort="losers">Losers</button>
+                <button class="sort-btn" data-sort="alpha">A–Z</button>
+            </div>
             <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle Dark Mode">
                 <i class="fas fa-blind"></i>
             </button>
         </div>
+        <div id="market-status-bar" class="market-status-bar"></div>
         <div id="stocks-container"></div>
     </div>
 
@@ -52,6 +59,6 @@
         </a>
     </footer>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

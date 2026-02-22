@@ -443,3 +443,91 @@ h1 {
 .footer-github:hover {
     color: var(--text-color);
 }
+
+/* Fundamentals strip */
+.fundamentals-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem 0.75rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.6875rem;
+    color: var(--muted-color);
+}
+
+.fundamentals-strip .fund-item { display: flex; gap: 0.2rem; }
+.fundamentals-strip .fund-label { opacity: 0.7; }
+.fundamentals-strip .fund-value { font-weight: 500; color: var(--text-color); }
+
+/* Market status banner */
+.market-status-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: var(--card-radius);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+}
+
+.market-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    border: 1px solid currentColor;
+    font-size: 0.725rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.market-pill.pill-open     { color: var(--positive-color); }
+.market-pill.pill-closed   { color: var(--muted-color); border-color: var(--border-color); }
+.market-pill.pill-extended { color: #d97706; }
+
+.pill-status {
+    opacity: 0.75;
+    font-weight: 400;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.pill-closed .status-dot { animation: none; }
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Sort controls */
+.sort-controls { display: flex; gap: 0.375rem; }
+
+.sort-btn {
+    padding: 0.25rem 0.625rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--muted-color);
+    font-size: 0.75rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sort-btn:hover { background: var(--card-bg-alt); color: var(--text-color); }
+.sort-btn.active { background: var(--accent-color); color: #fff; border-color: var(--accent-color); }
+
+@media (max-width: 600px) { .sort-controls { display: none; } }

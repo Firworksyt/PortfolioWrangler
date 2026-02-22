@@ -25,6 +25,37 @@ const configPath = path.join(__dirname, 'config.yaml');
 let watchlist = [];
 let config;
 let watchlistVersion = 0;
+// Maps a normalised display name → { displayName, marketState }
+let marketStates = new Map();
+
+// Yahoo Finance exchange codes → human-readable display names.
+// Codes that share a display name are intentionally merged into one pill
+// (e.g. NMS/NGM/NCM are all NASDAQ tiers but the same exchange operationally).
+// NYSE Arca (PCX) opens/closes with NYSE so we fold it in — no need for a
+// separate pill that would confuse users.
+const EXCHANGE_DISPLAY = {
+    // US
+    NMS: 'NASDAQ', NGM: 'NASDAQ', NCM: 'NASDAQ',
+    NYQ: 'NYSE', PCX: 'NYSE', ASE: 'NYSE',
+    // UK
+    LSE: 'London',
+    // Europe
+    HEL: 'Helsinki', STO: 'Stockholm', CPH: 'Copenhagen', OSL: 'Oslo',
+    ETR: 'XETRA', PAR: 'Euronext Paris', AMS: 'Euronext AMS',
+    MCE: 'Madrid', MIL: 'Milan', SWX: 'SIX Swiss',
+    // Asia-Pacific
+    TYO: 'Tokyo', OSA: 'Osaka', HKG: 'Hong Kong',
+    SGX: 'Singapore', ASX: 'ASX', TAI: 'Taiwan',
+    BSE: 'BSE India', NSE: 'NSE India',
+    // Americas
+    TSX: 'TSX', SAO: 'B3',
+};
+
+// OTC/Pink Sheet codes are skipped entirely. ADRs like RYCEY/TOTDY trade on
+// these during US hours — identical to NYSE/NASDAQ hours already shown — so
+// an "OTC Markets" pill is redundant and misleading (users expect the
+// underlying exchange, e.g. London or Tokyo, not a US OTC wrapper).
+const SKIP_EXCHANGES = new Set(['PNK', 'OTCPK', 'OTCQB', 'OTCQX', 'OBB', 'OTC']);
 
 // Load (or reload) the configuration file
 function loadConfig({ initial = false } = {}) {
@@ -45,6 +76,9 @@ function loadConfig({ initial = false } = {}) {
             for (const symbol of diff.removed) {
                 latestPrices.delete(symbol);
             }
+
+            // Reset market states — will repopulate on next poll cycle
+            marketStates.clear();
 
             // Load initial prices for newly added symbols
             loadInitialPricesForSymbols(diff.added);
@@ -161,7 +195,9 @@ function calculateUpdateSchedule() {
                 isExtendedHours: priceData.isExtendedHours,
                 extendedHoursPrice: priceData.extendedHoursPrice,
                 extendedHoursChange: priceData.extendedHoursChange,
-                marketState: priceData.marketState
+                marketState: priceData.marketState,
+                exchange: quote.exchange ?? null,
+                fullExchangeName: quote.fullExchangeName ?? null,
             };
         } catch (error) {
             console.error(`Error updating ${symbol}:`, error);
@@ -169,17 +205,27 @@ function calculateUpdateSchedule() {
         }
     }
 
+    function recordStockResult(symbol, result) {
+        latestPrices.set(symbol, result);
+        if (result.exchange && result.marketState && !SKIP_EXCHANGES.has(result.exchange)) {
+            const displayName = EXCHANGE_DISPLAY[result.exchange] ?? result.fullExchangeName ?? result.exchange;
+            marketStates.set(displayName, { displayName, marketState: result.marketState });
+        }
+    }
+
     // Start the update cycle
     let currentIndex = 0;
     updateInterval = setInterval(async () => {
         const symbol = watchlist[currentIndex];
-        await updateStock(symbol);
-
+        const result = await updateStock(symbol);
+        if (result) recordStockResult(symbol, result);
         currentIndex = (currentIndex + 1) % stockCount;
     }, UPDATE_INTERVAL);
 
     // Run the first update immediately
-    updateStock(watchlist[0]);
+    updateStock(watchlist[0]).then(result => {
+        if (result) recordStockResult(watchlist[0], result);
+    });
 }
 
 // Serve static files
@@ -250,6 +296,11 @@ app.get('/api/watchlist', (req, res) => {
 // Version endpoint
 app.get('/api/version', (req, res) => {
     res.json(appVersion);
+});
+
+// Market status endpoint
+app.get('/api/market-status', (req, res) => {
+    res.json({ markets: [...marketStates.values()], asOf: new Date().toISOString() });
 });
 
 // Start the update schedule

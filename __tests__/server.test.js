@@ -11,7 +11,9 @@ import {
     postMarketQuote,
     negativeChangeQuote,
     shortNameOnlyQuote,
-    noNameQuote
+    noNameQuote,
+    quoteWithFundamentals,
+    etfQuote
 } from './mocks/yahooFinance.js';
 
 /**
@@ -147,6 +149,55 @@ describe('API Response Formatting', () => {
 
         expect(typeof response['Global Quote']['05. price']).toBe('string');
         expect(typeof response['Global Quote']['09. change']).toBe('string');
+    });
+});
+
+describe('Fundamentals Block', () => {
+    it('should include fundamentals key in response', () => {
+        const response = formatApiResponse(quoteWithFundamentals);
+
+        expect(response.fundamentals).toBeDefined();
+    });
+
+    it('should map all fundamentals fields from quote', () => {
+        const response = formatApiResponse(quoteWithFundamentals);
+        const f = response.fundamentals;
+
+        expect(f.marketCap).toBe(2500000000000);
+        expect(f.fiftyTwoWeekHigh).toBe(200.00);
+        expect(f.fiftyTwoWeekLow).toBe(120.00);
+        expect(f.trailingPE).toBe(28.5);
+        expect(f.forwardPE).toBe(25.0);
+        expect(f.regularMarketVolume).toBe(45000000);
+        expect(f.averageVolume).toBe(55000000);
+    });
+
+    it('should return null for missing PE fields on ETF', () => {
+        const response = formatApiResponse(etfQuote);
+        const f = response.fundamentals;
+
+        expect(f.trailingPE).toBeNull();
+        expect(f.forwardPE).toBeNull();
+    });
+
+    it('should still include 52W range and volume for ETF', () => {
+        const response = formatApiResponse(etfQuote);
+        const f = response.fundamentals;
+
+        expect(f.fiftyTwoWeekHigh).toBe(480.00);
+        expect(f.fiftyTwoWeekLow).toBe(380.00);
+        expect(f.regularMarketVolume).toBe(80000000);
+        expect(f.averageVolume).toBe(85000000);
+    });
+
+    it('should return null for fundamentals fields absent from quote', () => {
+        const response = formatApiResponse(regularMarketQuote);
+        const f = response.fundamentals;
+
+        expect(f.marketCap).toBeNull();
+        expect(f.fiftyTwoWeekHigh).toBeNull();
+        expect(f.trailingPE).toBeNull();
+        expect(f.regularMarketVolume).toBeNull();
     });
 });
 

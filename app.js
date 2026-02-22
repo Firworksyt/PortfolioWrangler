@@ -1,3 +1,5 @@
+import { buildFundamentalsHTML } from './lib/formatters.js';
+
 let stocks = [];
 const REFRESH_INTERVAL = 1 * 60 * 1000; // Refresh every minute
 let lastRefreshTime = {};
@@ -7,6 +9,7 @@ let currentWatchlistVersion = null;
 let currentHistoryData = [];
 let currentHistorySymbol = null;
 let initialCommitHash = null;
+let currentSort = localStorage.getItem('sort') ?? 'default';
 
 // Dark mode initialization
 const darkModeToggle = document.getElementById('darkModeToggle');
@@ -51,6 +54,18 @@ closeBtn.onclick = () => modal.style.display = 'none';
 window.onclick = (event) => {
     if (event.target === modal) modal.style.display = 'none';
 };
+
+// Sort buttons
+document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sort === currentSort);
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSort = btn.dataset.sort;
+        localStorage.setItem('sort', currentSort);
+        applySortToContainer();
+    });
+});
 
 // Range buttons
 document.querySelectorAll('.range-btn').forEach(btn => {
@@ -164,7 +179,7 @@ async function loadWatchlist() {
 
             if (data.initialPrices && data.initialPrices[symbol]) {
                 const initialData = data.initialPrices[symbol];
-                displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName);
+                displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName, initialData.fundamentals);
             }
         });
 
@@ -195,7 +210,7 @@ async function checkWatchlistChanges() {
 
                 if (data.initialPrices && data.initialPrices[symbol]) {
                     const initialData = data.initialPrices[symbol];
-                    displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName);
+                    displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName, initialData.fundamentals);
                 }
             });
 
@@ -217,7 +232,7 @@ async function fetchStockPrice(symbol) {
 
         if (data['Global Quote']) {
             lastRefreshTime[symbol] = new Date();
-            displayStockPrice(symbol, data['Global Quote'], data.companyName);
+            displayStockPrice(symbol, data['Global Quote'], data.companyName, data.fundamentals);
         } else if (data.error) {
             console.error('API Error:', data.error);
         } else {
@@ -228,7 +243,7 @@ async function fetchStockPrice(symbol) {
     }
 }
 
-async function displayStockPrice(symbol, quote, companyName) {
+function displayStockPrice(symbol, quote, companyName, fundamentals = null) {
     const stockCard = document.querySelector(`.stock-card[data-symbol="${symbol}"]`);
     if (!stockCard) return;
 
@@ -236,9 +251,9 @@ async function displayStockPrice(symbol, quote, companyName) {
     const change = parseFloat(quote['09. change']);
     const changePercent = parseFloat(quote['10. change percent']);
     const lastUpdate = lastRefreshTime[symbol] || new Date();
-    const previousPrice = lastPrices[symbol];
+    const previousPrice = lastPrices[symbol]?.price;
 
-    lastPrices[symbol] = price;
+    lastPrices[symbol] = { price, changePercent };
 
     const companyNameElement = stockCard.querySelector('.company-name');
     companyNameElement.textContent = companyName || symbol;
@@ -272,7 +287,21 @@ async function displayStockPrice(symbol, quote, companyName) {
     } else {
         stockCard.classList.remove('cached');
     }
+
+    let strip = stockCard.querySelector('.fundamentals-strip');
+    if (!strip) {
+        strip = document.createElement('div');
+        strip.className = 'fundamentals-strip';
+        stockCard.appendChild(strip);
+    }
+    if (fundamentals) {
+        strip.innerHTML = buildFundamentalsHTML(fundamentals);
+        strip.style.display = '';
+    } else {
+        strip.style.display = 'none';
+    }
 }
+
 
 async function showPriceHistory(symbol) {
     try {
@@ -302,10 +331,61 @@ async function showPriceHistory(symbol) {
     }
 }
 
-function fetchAllStockPrices() {
-    stocks.forEach((symbol, index) => {
-        setTimeout(() => fetchStockPrice(symbol), index * 1000);
+function applySortToContainer() {
+    const container = document.getElementById('stocks-container');
+    const cards = [...container.querySelectorAll('.stock-card')];
+    cards.sort((a, b) => {
+        const symA = a.dataset.symbol, symB = b.dataset.symbol;
+        if (currentSort === 'gainers') return (lastPrices[symB]?.changePercent ?? 0) - (lastPrices[symA]?.changePercent ?? 0);
+        if (currentSort === 'losers')  return (lastPrices[symA]?.changePercent ?? 0) - (lastPrices[symB]?.changePercent ?? 0);
+        if (currentSort === 'alpha')   return symA.localeCompare(symB);
+        return stocks.indexOf(symA) - stocks.indexOf(symB);
     });
+    cards.forEach(c => container.appendChild(c));
+}
+
+function fetchAllStockPrices() {
+    const total = stocks.length;
+    stocks.forEach((symbol, index) => {
+        setTimeout(() => {
+            fetchStockPrice(symbol);
+            if (index === total - 1) {
+                setTimeout(() => applySortToContainer(), 100);
+            }
+        }, index * 1000);
+    });
+}
+
+async function fetchMarketStatus() {
+    try {
+        const res = await fetch('/api/market-status');
+        const { markets } = await res.json();
+        updateMarketStatusBar(markets);
+    } catch { /* silent */ }
+}
+
+function updateMarketStatusBar(markets) {
+    const bar = document.getElementById('market-status-bar');
+    if (!bar) return;
+    if (!markets || markets.length === 0) {
+        bar.style.display = 'none';
+        return;
+    }
+    bar.style.display = '';
+    bar.className = 'market-status-bar';
+    bar.innerHTML = markets.map(buildMarketPillHTML).join('');
+}
+
+function buildMarketPillHTML({ displayName, marketState }) {
+    const stateMap = {
+        REGULAR:   { label: 'Open',   cls: 'pill-open'     },
+        PRE:       { label: 'Pre',    cls: 'pill-extended'  },
+        POST:      { label: 'After',  cls: 'pill-extended'  },
+        PREPRE:    { label: 'Closed', cls: 'pill-closed'    },
+        POSTPOST:  { label: 'Closed', cls: 'pill-closed'    },
+    };
+    const s = stateMap[marketState] ?? { label: 'Closed', cls: 'pill-closed' };
+    return `<span class="market-pill ${s.cls}"><span class="status-dot"></span>${displayName}<span class="pill-status">${s.label}</span></span>`;
 }
 
 async function loadVersion() {
@@ -350,10 +430,12 @@ function showUpdateToast() {
 initializeDarkMode();
 loadWatchlist();
 loadVersion();
+fetchMarketStatus();
 
 // Auto-refresh — also checks for watchlist changes and new deployments
 setInterval(() => {
     checkWatchlistChanges();
     fetchAllStockPrices();
     checkForUpdates();
+    fetchMarketStatus();
 }, REFRESH_INTERVAL);

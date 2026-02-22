@@ -90,6 +90,45 @@ export const noNameQuote = {
 };
 
 /**
+ * Quote with full fundamentals data (large-cap stock)
+ */
+export const quoteWithFundamentals = {
+    symbol: 'AAPL',
+    regularMarketPrice: 150.25,
+    regularMarketPreviousClose: 148.50,
+    regularMarketChange: 1.75,
+    regularMarketChangePercent: 1.178,
+    marketState: 'REGULAR',
+    longName: 'Apple Inc.',
+    shortName: 'Apple',
+    marketCap: 2500000000000,
+    fiftyTwoWeekHigh: 200.00,
+    fiftyTwoWeekLow: 120.00,
+    trailingPE: 28.5,
+    forwardPE: 25.0,
+    regularMarketVolume: 45000000,
+    averageVolume: 55000000,
+};
+
+/**
+ * ETF quote — no market cap, no P/E ratios
+ */
+export const etfQuote = {
+    symbol: 'SPY',
+    regularMarketPrice: 450.00,
+    regularMarketPreviousClose: 448.00,
+    regularMarketChange: 2.00,
+    regularMarketChangePercent: 0.446,
+    marketState: 'REGULAR',
+    longName: 'SPDR S&P 500 ETF Trust',
+    shortName: 'SPY',
+    fiftyTwoWeekHigh: 480.00,
+    fiftyTwoWeekLow: 380.00,
+    regularMarketVolume: 80000000,
+    averageVolume: 85000000,
+};
+
+/**
  * Creates a mock Yahoo Finance instance
  */
 export function createMockYahooFinance(quoteResponses = {}) {
