@@ -78,7 +78,7 @@ describe('parseConfigFile', () => {
         return filePath;
     }
 
-    it('should parse a valid config file and return watchlist + config', () => {
+    it('should parse a valid config file and return watchlist + sections + config', () => {
         const filePath = writeConfig('config.yaml', `
 watchlist:
   - AAPL
@@ -91,6 +91,7 @@ server:
 
         expect(result.watchlist).toEqual(['AAPL', 'TSLA', 'MSFT']);
         expect(result.config.server.port).toBe(8080);
+        expect(result.sections).toEqual([{ name: null, stocks: ['AAPL', 'TSLA', 'MSFT'] }]);
     });
 
     it('should throw on file not found', () => {
@@ -129,5 +130,108 @@ server:
 
         expect(result.watchlist).toEqual([]);
         expect(result.config.server.port).toBe(5000);
+    });
+});
+
+describe('parseConfigFile with sections', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'configtest-sections-'));
+    });
+
+    afterEach(() => {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    function writeConfig(filename, content) {
+        const filePath = path.join(tmpDir, filename);
+        fs.writeFileSync(filePath, content, 'utf8');
+        return filePath;
+    }
+
+    it('should parse sections format correctly', () => {
+        const filePath = writeConfig('config.yaml', `
+sections:
+  - name: Tech
+    stocks:
+      - AAPL
+      - MSFT
+  - name: ETFs
+    stocks:
+      - SPY
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.sections).toEqual([
+            { name: 'Tech', stocks: ['AAPL', 'MSFT'] },
+            { name: 'ETFs', stocks: ['SPY'] },
+        ]);
+        expect(result.watchlist).toEqual(['AAPL', 'MSFT', 'SPY']);
+    });
+
+    it('should handle multiple sections and produce a correctly ordered flat watchlist', () => {
+        const filePath = writeConfig('config.yaml', `
+sections:
+  - name: A
+    stocks:
+      - TSLA
+      - NVDA
+  - name: B
+    stocks:
+      - AMZN
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.watchlist).toEqual(['TSLA', 'NVDA', 'AMZN']);
+        expect(result.sections).toHaveLength(2);
+    });
+
+    it('should treat legacy watchlist format as single unnamed section', () => {
+        const filePath = writeConfig('config.yaml', `
+watchlist:
+  - AAPL
+  - GOOG
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.sections).toEqual([{ name: null, stocks: ['AAPL', 'GOOG'] }]);
+        expect(result.watchlist).toEqual(['AAPL', 'GOOG']);
+    });
+
+    it('should default name to null when section has no name key', () => {
+        const filePath = writeConfig('config.yaml', `
+sections:
+  - stocks:
+      - AAPL
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.sections[0].name).toBeNull();
+        expect(result.sections[0].stocks).toEqual(['AAPL']);
+    });
+
+    it('should return empty watchlist for empty sections array', () => {
+        const filePath = writeConfig('config.yaml', `
+sections: []
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.watchlist).toEqual([]);
+        expect(result.sections).toEqual([]);
+    });
+
+    it('should exclude stocks from a section with an empty stocks list', () => {
+        const filePath = writeConfig('config.yaml', `
+sections:
+  - name: Empty
+    stocks: []
+  - name: Full
+    stocks:
+      - TSLA
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.watchlist).toEqual(['TSLA']);
     });
 });

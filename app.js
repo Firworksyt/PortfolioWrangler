@@ -1,6 +1,7 @@
 import { buildFundamentalsHTML } from './lib/formatters.js';
 
 let stocks = [];
+let sections = [];
 const REFRESH_INTERVAL = 1 * 60 * 1000; // Refresh every minute
 let lastRefreshTime = {};
 let lastPrices = {};
@@ -170,17 +171,27 @@ async function loadWatchlist() {
         const response = await fetch('/api/watchlist');
         const data = await response.json();
         stocks = data.watchlist;
+        sections = data.sections || [{ name: null, stocks: data.watchlist }];
         currentWatchlistVersion = data.watchlistVersion;
 
         const container = document.getElementById('stocks-container');
-        stocks.forEach(symbol => {
-            const stockCard = createStockCard(symbol);
-            container.appendChild(stockCard);
-
-            if (data.initialPrices && data.initialPrices[symbol]) {
-                const initialData = data.initialPrices[symbol];
-                displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName, initialData.fundamentals);
+        sections.forEach((section, i) => {
+            if (section.name !== null) {
+                const header = document.createElement('div');
+                header.className = 'section-header';
+                header.textContent = section.name;
+                container.appendChild(header);
             }
+            section.stocks.forEach(symbol => {
+                const stockCard = createStockCard(symbol);
+                stockCard.dataset.sectionIndex = i;
+                container.appendChild(stockCard);
+
+                if (data.initialPrices && data.initialPrices[symbol]) {
+                    const initialData = data.initialPrices[symbol];
+                    displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName, initialData.fundamentals);
+                }
+            });
         });
 
         fetchAllStockPrices();
@@ -198,20 +209,30 @@ async function checkWatchlistChanges() {
             console.log('Watchlist changed, rebuilding...');
             currentWatchlistVersion = data.watchlistVersion;
             stocks = data.watchlist;
+            sections = data.sections || [{ name: null, stocks: data.watchlist }];
 
             const container = document.getElementById('stocks-container');
             container.innerHTML = '';
             lastRefreshTime = {};
             lastPrices = {};
 
-            stocks.forEach(symbol => {
-                const stockCard = createStockCard(symbol);
-                container.appendChild(stockCard);
-
-                if (data.initialPrices && data.initialPrices[symbol]) {
-                    const initialData = data.initialPrices[symbol];
-                    displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName, initialData.fundamentals);
+            sections.forEach((section, i) => {
+                if (section.name !== null) {
+                    const header = document.createElement('div');
+                    header.className = 'section-header';
+                    header.textContent = section.name;
+                    container.appendChild(header);
                 }
+                section.stocks.forEach(symbol => {
+                    const stockCard = createStockCard(symbol);
+                    stockCard.dataset.sectionIndex = i;
+                    container.appendChild(stockCard);
+
+                    if (data.initialPrices && data.initialPrices[symbol]) {
+                        const initialData = data.initialPrices[symbol];
+                        displayStockPrice(symbol, initialData['Global Quote'], initialData.companyName, initialData.fundamentals);
+                    }
+                });
             });
 
             fetchAllStockPrices();
@@ -333,15 +354,29 @@ async function showPriceHistory(symbol) {
 
 function applySortToContainer() {
     const container = document.getElementById('stocks-container');
-    const cards = [...container.querySelectorAll('.stock-card')];
-    cards.sort((a, b) => {
-        const symA = a.dataset.symbol, symB = b.dataset.symbol;
-        if (currentSort === 'gainers') return (lastPrices[symB]?.changePercent ?? 0) - (lastPrices[symA]?.changePercent ?? 0);
-        if (currentSort === 'losers')  return (lastPrices[symA]?.changePercent ?? 0) - (lastPrices[symB]?.changePercent ?? 0);
-        if (currentSort === 'alpha')   return symA.localeCompare(symB);
-        return stocks.indexOf(symA) - stocks.indexOf(symB);
-    });
-    cards.forEach(c => container.appendChild(c));
+
+    if (currentSort !== 'default') {
+        // Hide section headers and sort all cards globally
+        container.querySelectorAll('.section-header').forEach(h => { h.style.display = 'none'; });
+        const cards = [...container.querySelectorAll('.stock-card')];
+        cards.sort((a, b) => {
+            const symA = a.dataset.symbol, symB = b.dataset.symbol;
+            if (currentSort === 'gainers') return (lastPrices[symB]?.changePercent ?? 0) - (lastPrices[symA]?.changePercent ?? 0);
+            if (currentSort === 'losers')  return (lastPrices[symA]?.changePercent ?? 0) - (lastPrices[symB]?.changePercent ?? 0);
+            if (currentSort === 'alpha')   return symA.localeCompare(symB);
+        });
+        cards.forEach(c => container.appendChild(c));
+    } else {
+        // Show section headers and restore declared order
+        const headers = [...container.querySelectorAll('.section-header')];
+        headers.forEach(h => { h.style.display = ''; });
+        sections.forEach((section, i) => {
+            const header = headers[i];
+            if (header) container.appendChild(header);
+            const cards = [...container.querySelectorAll(`.stock-card[data-section-index="${i}"]`)];
+            cards.forEach(c => container.appendChild(c));
+        });
+    }
 }
 
 function fetchAllStockPrices() {

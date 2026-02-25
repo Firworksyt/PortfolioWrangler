@@ -10,7 +10,7 @@ A self-hosted, realish-time stock dashboard that displays current prices includi
 - 📈 Real-time stock price updates
 - 🌙 Pre-market and after-hours trading data
 - 📊 Interactive price charts
-- 📝 Configurable watchlist via YAML
+- 📝 Configurable watchlist with optional named sections via YAML
 - 💾 Historical price tracking
 - 🎨 Clean, responsive UI with price change animations
 
@@ -122,10 +122,21 @@ Copy `example.config.yaml` to `config.yaml` and customize it:
 server:
   port: 3000  # Change this if you want to use a different port
 
-# Stock watchlist
-watchlist:
-  - SKYT  # Add your stock symbols here
+# Stock watchlist with named sections
+sections:
+  - name: Semiconductors
+    stocks:
+      - SKYT
+      - NVDA
+
+  - name: ETFs
+    stocks:
+      - SPY
 ```
+
+Section headers appear above each group on the dashboard. When sorting by Gainers, Losers, or A–Z, headers are hidden and all cards are sorted globally; switching back to Default restores the sectioned layout.
+
+> **Backward compatibility:** The legacy `watchlist` key (a flat list of symbols) is still supported — no section headers will be rendered, and existing configs work without any changes.
 
 ## Technical Stack
 

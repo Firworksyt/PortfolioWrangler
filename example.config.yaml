@@ -2,8 +2,13 @@
 server:
   port: 3000  # The port to run the server on
 
-# Stock watchlist configuration
-watchlist:
-  - SKYT  # Skywater Technology - A semiconductor foundry company
-  - NVDA  # NVIDIA - For comparison with another semiconductor company
-  - SPY   # S&P 500 ETF - For general market reference
+# Stock watchlist configuration — use named sections to group your stocks
+sections:
+  - name: Semiconductors
+    stocks:
+      - SKYT  # Skywater Technology - A semiconductor foundry company
+      - NVDA  # NVIDIA
+
+  - name: ETFs
+    stocks:
+      - SPY   # S&P 500 ETF - For general market reference

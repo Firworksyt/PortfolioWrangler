@@ -23,6 +23,7 @@ console.log(`App version: ${appVersion.commitHash} (built ${appVersion.buildTime
 // Config state
 const configPath = path.join(__dirname, 'config.yaml');
 let watchlist = [];
+let sections = [];
 let config;
 let watchlistVersion = 0;
 // Maps a normalised display name → { displayName, marketState }
@@ -98,6 +99,7 @@ function loadConfig({ initial = false } = {}) {
         }
 
         watchlist = newWatchlist;
+        sections = result.sections;
         config = newConfig;
         watchlistVersion++;
 
@@ -301,6 +303,7 @@ app.get('/api/watchlist', (req, res) => {
 
     res.json({
         watchlist,
+        sections,
         initialPrices,
         watchlistVersion
     });
