@@ -2,6 +2,12 @@
 server:
   port: 3000  # The port to run the server on
 
+# Crypto watchlist — use short coin symbols (BTC, ETH, DOGE…)
+# The server automatically appends -USD to form the Yahoo Finance ticker.
+crypto:
+  - BTC   # Bitcoin
+  - DOGE  # Dogecoin
+
 # Stock watchlist configuration — use named sections to group your stocks
 sections:
   - name: Semiconductors

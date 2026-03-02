@@ -2,6 +2,8 @@ import { buildFundamentalsHTML } from './lib/formatters.js';
 
 let stocks = [];
 let sections = [];
+let cryptoSymbols = [];
+let cryptoTickers = [];
 const REFRESH_INTERVAL = 1 * 60 * 1000; // Refresh every minute
 let lastRefreshTime = {};
 let lastPrices = {};
@@ -149,6 +151,48 @@ function renderChart(data) {
     });
 }
 
+function createCryptoPill(symbol, ticker) {
+    const pill = document.createElement('div');
+    pill.className = 'crypto-pill';
+    pill.setAttribute('data-symbol', ticker);
+    pill.setAttribute('data-crypto-symbol', symbol);
+    pill.onclick = () => showPriceHistory(ticker);
+    const logoUrl = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/${symbol.toLowerCase()}.png`;
+    pill.innerHTML = `
+        <img class="crypto-logo" src="${logoUrl}" alt="${symbol}" onerror="this.style.display='none'">
+        <span class="crypto-symbol">${symbol}</span>
+        <span class="crypto-price">…</span>
+        <span class="crypto-change">…</span>
+    `;
+    return pill;
+}
+
+function renderCryptoBar() {
+    const bar = document.getElementById('crypto-container');
+    bar.innerHTML = '';
+    if (cryptoSymbols.length === 0) { bar.style.display = 'none'; return; }
+    bar.style.display = '';
+    cryptoSymbols.forEach((symbol, i) => bar.appendChild(createCryptoPill(symbol, cryptoTickers[i])));
+}
+
+function displayCryptoPrice(symbol, ticker, quote) {
+    const pill = document.querySelector(`.crypto-pill[data-symbol="${ticker}"]`);
+    if (!pill) return;
+    const price = parseFloat(quote['05. price']);
+    const change = parseFloat(quote['09. change']);
+    const changePct = parseFloat(quote['10. change percent']);
+    const priceStr = price >= 1
+        ? '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : '$' + price.toFixed(6);
+    const sign = change >= 0 ? '+' : '';
+    pill.querySelector('.crypto-price').textContent = priceStr;
+    const changeEl = pill.querySelector('.crypto-change');
+    changeEl.textContent = `${sign}${changePct.toFixed(2)}%`;
+    changeEl.className = 'crypto-change ' + (change >= 0 ? 'positive' : 'negative');
+    pill.classList.toggle('pill-positive', change > 0);
+    pill.classList.toggle('pill-negative', change < 0);
+}
+
 function createStockCard(symbol) {
     const stockCard = document.createElement('div');
     stockCard.className = 'stock-card';
@@ -173,6 +217,15 @@ async function loadWatchlist() {
         stocks = data.watchlist;
         sections = data.sections || [{ name: null, stocks: data.watchlist }];
         currentWatchlistVersion = data.watchlistVersion;
+        cryptoSymbols = data.cryptoSymbols ?? [];
+        cryptoTickers = data.cryptoTickers ?? [];
+        renderCryptoBar();
+        cryptoSymbols.forEach((symbol, i) => {
+            const ticker = cryptoTickers[i];
+            if (data.initialPrices?.[ticker]) {
+                displayCryptoPrice(symbol, ticker, data.initialPrices[ticker]['Global Quote']);
+            }
+        });
 
         const container = document.getElementById('stocks-container');
         sections.forEach((section, i) => {
@@ -210,6 +263,15 @@ async function checkWatchlistChanges() {
             currentWatchlistVersion = data.watchlistVersion;
             stocks = data.watchlist;
             sections = data.sections || [{ name: null, stocks: data.watchlist }];
+            cryptoSymbols = data.cryptoSymbols ?? [];
+            cryptoTickers = data.cryptoTickers ?? [];
+            renderCryptoBar();
+            cryptoSymbols.forEach((symbol, i) => {
+                const ticker = cryptoTickers[i];
+                if (data.initialPrices?.[ticker]) {
+                    displayCryptoPrice(symbol, ticker, data.initialPrices[ticker]['Global Quote']);
+                }
+            });
 
             const container = document.getElementById('stocks-container');
             container.innerHTML = '';
@@ -253,7 +315,12 @@ async function fetchStockPrice(symbol) {
 
         if (data['Global Quote']) {
             lastRefreshTime[symbol] = new Date();
-            displayStockPrice(symbol, data['Global Quote'], data.companyName, data.fundamentals);
+            const cryptoIdx = cryptoTickers.indexOf(symbol);
+            if (cryptoIdx !== -1) {
+                displayCryptoPrice(cryptoSymbols[cryptoIdx], symbol, data['Global Quote']);
+            } else {
+                displayStockPrice(symbol, data['Global Quote'], data.companyName, data.fundamentals);
+            }
         } else if (data.error) {
             console.error('API Error:', data.error);
         } else {

@@ -129,6 +129,22 @@ export const etfQuote = {
 };
 
 /**
+ * Crypto quote — exchange is 'CCC', which should be in SKIP_EXCHANGES
+ */
+export const cryptoBtcQuote = {
+    symbol: 'BTC-USD',
+    regularMarketPrice: 65000.00,
+    regularMarketPreviousClose: 63000.00,
+    regularMarketChange: 2000.00,
+    regularMarketChangePercent: 3.175,
+    marketState: 'REGULAR',
+    longName: 'Bitcoin USD',
+    shortName: 'BTC-USD',
+    exchange: 'CCC',
+    fullExchangeName: 'CCC',
+};
+
+/**
  * Creates a mock Yahoo Finance instance
  */
 export function createMockYahooFinance(quoteResponses = {}) {

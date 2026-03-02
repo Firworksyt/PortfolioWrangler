@@ -235,3 +235,102 @@ sections:
         expect(result.watchlist).toEqual(['TSLA']);
     });
 });
+
+describe('parseConfigFile crypto section', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'configtest-crypto-'));
+    });
+
+    afterEach(() => {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    function writeConfig(filename, content) {
+        const filePath = path.join(tmpDir, filename);
+        fs.writeFileSync(filePath, content, 'utf8');
+        return filePath;
+    }
+
+    it('should parse crypto list into cryptoSymbols and cryptoTickers', () => {
+        const filePath = writeConfig('config.yaml', `
+crypto:
+  - BTC
+  - DOGE
+sections: []
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.cryptoSymbols).toEqual(['BTC', 'DOGE']);
+        expect(result.cryptoTickers).toEqual(['BTC-USD', 'DOGE-USD']);
+    });
+
+    it('should prepend crypto tickers to the flat watchlist', () => {
+        const filePath = writeConfig('config.yaml', `
+crypto:
+  - BTC
+sections:
+  - name: Tech
+    stocks:
+      - AAPL
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.watchlist).toEqual(['BTC-USD', 'AAPL']);
+        expect(result.watchlist[0]).toBe('BTC-USD');
+    });
+
+    it('should return empty crypto arrays when crypto key is absent', () => {
+        const filePath = writeConfig('config.yaml', `
+sections:
+  - name: Tech
+    stocks:
+      - AAPL
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.cryptoSymbols).toEqual([]);
+        expect(result.cryptoTickers).toEqual([]);
+        expect(result.watchlist).toEqual(['AAPL']);
+    });
+
+    it('should return empty crypto arrays for crypto: []', () => {
+        const filePath = writeConfig('config.yaml', `
+crypto: []
+sections: []
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.cryptoSymbols).toEqual([]);
+        expect(result.cryptoTickers).toEqual([]);
+    });
+
+    it('should uppercase and trim symbol strings', () => {
+        const filePath = writeConfig('config.yaml', `
+crypto:
+  - ' btc '
+  - 'eth'
+sections: []
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.cryptoSymbols).toEqual(['BTC', 'ETH']);
+        expect(result.cryptoTickers).toEqual(['BTC-USD', 'ETH-USD']);
+    });
+
+    it('should filter out non-string entries in the crypto list', () => {
+        const filePath = writeConfig('config.yaml', `
+crypto:
+  - BTC
+  - 42
+  - null
+  - DOGE
+sections: []
+`);
+        const result = parseConfigFile(filePath);
+
+        expect(result.cryptoSymbols).toEqual(['BTC', 'DOGE']);
+        expect(result.cryptoTickers).toEqual(['BTC-USD', 'DOGE-USD']);
+    });
+});

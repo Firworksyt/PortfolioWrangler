@@ -26,6 +26,8 @@ let watchlist = [];
 let sections = [];
 let config;
 let watchlistVersion = 0;
+let cryptoSymbols = [];
+let cryptoTickers = [];
 // Maps a normalised display name → { displayName, marketState }
 let marketStates = new Map();
 
@@ -63,6 +65,7 @@ const SKIP_EXCHANGES = new Set([
     'OQB',     // OTC OTCQB tier
     'OTCMKTS', // generic OTC Markets code
     'OTCPK', 'OTCQB', 'OTCQX', 'OBB', 'OTC', 'OTCBB',
+    'CCC',     // Crypto (24/7, no meaningful market open/close state)
 ]);
 
 function isOtcExchange(exchange, fullExchangeName) {
@@ -101,6 +104,8 @@ function loadConfig({ initial = false } = {}) {
         watchlist = newWatchlist;
         sections = result.sections;
         config = newConfig;
+        cryptoSymbols = result.cryptoSymbols ?? [];
+        cryptoTickers = result.cryptoTickers ?? [];
         watchlistVersion++;
 
         console.log('Successfully loaded configuration file');
@@ -305,7 +310,9 @@ app.get('/api/watchlist', (req, res) => {
         watchlist,
         sections,
         initialPrices,
-        watchlistVersion
+        watchlistVersion,
+        cryptoSymbols,
+        cryptoTickers
     });
 });
 
