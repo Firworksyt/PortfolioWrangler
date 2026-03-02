@@ -23,7 +23,7 @@
     "js-yaml": "^4.1.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
-    "yahoo-finance2": "^3.13.0"
+    "yahoo-finance2": "^3.13.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
