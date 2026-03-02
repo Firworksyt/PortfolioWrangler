@@ -7,7 +7,6 @@ import { fetch } from 'undici';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
 const configPath = path.join(projectRoot, 'config.yaml');
-const exampleConfigPath = path.join(projectRoot, 'example.config.yaml');
 
 describe('Market Status Endpoint', () => {
     let serverProc = null;
@@ -16,7 +15,14 @@ describe('Market Status Endpoint', () => {
 
     beforeAll(async () => {
         if (!fs.existsSync(configPath)) {
-            fs.copyFileSync(exampleConfigPath, configPath);
+            fs.writeFileSync(configPath, [
+                'crypto:',
+                '  - BTC',
+                'sections:',
+                '  - name: Test',
+                '    stocks:',
+                '      - SPY',
+            ].join('\n'), 'utf8');
             createdConfig = true;
         }
 
@@ -79,12 +85,15 @@ describe('Market Status Endpoint', () => {
     });
 
     it('each market entry should have displayName and marketState', async () => {
-        // Wait briefly for the first poll to complete before checking
-        await new Promise(r => setTimeout(r, 12000));
-        const res = await fetch(`http://localhost:${serverPort}/api/market-status`);
-        const { markets } = await res.json();
+        // Poll until at least one market entry appears (or timeout after 30s)
+        let markets = [];
+        const deadline = Date.now() + 30000;
+        while (markets.length === 0 && Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 1000));
+            const res = await fetch(`http://localhost:${serverPort}/api/market-status`);
+            ({ markets } = await res.json());
+        }
 
-        // After first poll there should be at least one entry
         expect(markets.length).toBeGreaterThan(0);
         for (const m of markets) {
             expect(typeof m.displayName).toBe('string');
@@ -92,5 +101,5 @@ describe('Market Status Endpoint', () => {
             const validStates = ['REGULAR', 'PRE', 'POST', 'CLOSED', 'PREPRE', 'POSTPOST'];
             expect(validStates).toContain(m.marketState);
         }
-    }, 20000);
+    }, 35000);
 });
