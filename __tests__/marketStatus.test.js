@@ -1,37 +1,35 @@
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
 import { fetch } from 'undici';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
-const configPath = path.join(projectRoot, 'config.yaml');
 
 describe('Market Status Endpoint', () => {
     let serverProc = null;
     let serverPort = null;
-    let createdConfig = false;
+    let tempConfigPath = null;
 
     beforeAll(async () => {
-        if (!fs.existsSync(configPath)) {
-            fs.writeFileSync(configPath, [
-                'crypto:',
-                '  - BTC',
-                'sections:',
-                '  - name: Test',
-                '    stocks:',
-                '      - SPY',
-            ].join('\n'), 'utf8');
-            createdConfig = true;
-        }
+        tempConfigPath = path.join(os.tmpdir(), `market-status-test-config-${process.pid}.yaml`);
+        fs.writeFileSync(tempConfigPath, [
+            'crypto:',
+            '  - BTC',
+            'sections:',
+            '  - name: Test',
+            '    stocks:',
+            '      - SPY',
+        ].join('\n'), 'utf8');
 
         serverPort = 31000 + Math.floor(Math.random() * 10000);
 
         await new Promise((resolve, reject) => {
             serverProc = spawn('node', ['server.js'], {
                 cwd: projectRoot,
-                env: { ...process.env, PORT: String(serverPort) },
+                env: { ...process.env, PORT: String(serverPort), CONFIG_PATH: tempConfigPath },
                 stdio: ['pipe', 'pipe', 'pipe']
             });
 
@@ -57,8 +55,8 @@ describe('Market Status Endpoint', () => {
         if (serverProc && !serverProc.killed) {
             serverProc.kill();
         }
-        if (createdConfig && fs.existsSync(configPath)) {
-            fs.unlinkSync(configPath);
+        if (tempConfigPath && fs.existsSync(tempConfigPath)) {
+            fs.unlinkSync(tempConfigPath);
         }
     });
 
