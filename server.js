@@ -21,7 +21,7 @@ const appVersion = getAppVersion({ dirname: __dirname, env: process.env });
 console.log(`App version: ${appVersion.commitHash} (built ${appVersion.buildTimestamp})`);
 
 // Config state
-const configPath = path.join(__dirname, 'config.yaml');
+const configPath = process.env.CONFIG_PATH || path.join(__dirname, 'config.yaml');
 let watchlist = [];
 let sections = [];
 let config;
