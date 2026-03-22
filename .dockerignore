@@ -1,0 +1,13 @@
+# Never copy node_modules from the host; they are built inside the Docker
+# builder stage to ensure native addons (e.g. sqlite3) are compiled against
+# the container's glibc rather than a newer host glibc.
+node_modules
+
+# Runtime data and generated files
+data/
+*.db
+*.log
+
+# Config files with secrets
+.env
+config.yaml
