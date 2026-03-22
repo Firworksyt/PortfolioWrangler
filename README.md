@@ -4,6 +4,7 @@ A self-hosted, realish-time stock dashboard that displays current prices includi
 
 [![CI](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/ci.yml/badge.svg)](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/ci.yml)
 [![Security Scan](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/security.yml/badge.svg)](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/security.yml)
+[![Docker Image](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/docker.yml/badge.svg)](https://github.com/Firworksyt/PortfolioWrangler/actions/workflows/docker.yml)
 
 ## Features
 
