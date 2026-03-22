@@ -1,0 +1,11 @@
+# Never copy node_modules or runtime data from the host into the image.
+node_modules
+
+# Runtime data and generated files
+data/
+*.db
+*.log
+
+# Config files with secrets
+.env
+config.yaml
