@@ -7,6 +7,28 @@ import { fetch } from 'undici';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
+const mockQuotes = JSON.stringify({
+    'BTC-USD': {
+        symbol: 'BTC-USD',
+        regularMarketPrice: 65000,
+        regularMarketPreviousClose: 63000,
+        regularMarketChange: 2000,
+        regularMarketChangePercent: 3.175,
+        marketState: 'REGULAR',
+        exchange: 'CCC',
+        fullExchangeName: 'CCC',
+    },
+    SPY: {
+        symbol: 'SPY',
+        regularMarketPrice: 450,
+        regularMarketPreviousClose: 448,
+        regularMarketChange: 2,
+        regularMarketChangePercent: 0.446,
+        marketState: 'REGULAR',
+        exchange: 'NYQ',
+        fullExchangeName: 'New York Stock Exchange',
+    }
+});
 
 describe('Market Status Endpoint', () => {
     let serverProc = null;
@@ -29,7 +51,12 @@ describe('Market Status Endpoint', () => {
         await new Promise((resolve, reject) => {
             serverProc = spawn('node', ['server.js'], {
                 cwd: projectRoot,
-                env: { ...process.env, PORT: String(serverPort), CONFIG_PATH: tempConfigPath },
+                env: {
+                    ...process.env,
+                    PORT: String(serverPort),
+                    CONFIG_PATH: tempConfigPath,
+                    YAHOO_FINANCE_MOCK_DATA: mockQuotes,
+                },
                 stdio: ['pipe', 'pipe', 'pipe']
             });
 
@@ -83,7 +110,7 @@ describe('Market Status Endpoint', () => {
     });
 
     it('each market entry should have displayName and marketState', async () => {
-        // Poll until at least one market entry appears (or timeout after 30s)
+        // Poll until at least one market entry appears (30s timeout)
         let markets = [];
         const deadline = Date.now() + 30000;
         while (markets.length === 0 && Date.now() < deadline) {

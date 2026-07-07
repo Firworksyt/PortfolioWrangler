@@ -137,7 +137,37 @@ loadConfig({ initial: true });
 const PORT = process.env.PORT || config.server?.port || 3000;
 
 // Initialize Yahoo Finance
-const yahooFinance = new YahooFinance();
+function createYahooFinanceClient() {
+    const mockData = process.env.YAHOO_FINANCE_MOCK_DATA;
+    if (!mockData) {
+        return new YahooFinance();
+    }
+
+    let quoteResponses;
+    try {
+        quoteResponses = JSON.parse(mockData);
+    } catch (error) {
+        throw new Error(
+            `Invalid YAHOO_FINANCE_MOCK_DATA: expected JSON object mapping symbols to quote responses (${error.message})`,
+            { cause: error }
+        );
+    }
+
+    if (!quoteResponses || typeof quoteResponses !== 'object' || Array.isArray(quoteResponses)) {
+        throw new Error('Invalid YAHOO_FINANCE_MOCK_DATA: expected JSON object mapping symbols to quote responses');
+    }
+
+    return {
+        async quote(symbol) {
+            if (!(symbol in quoteResponses)) {
+                throw new Error(`No mock Yahoo Finance quote configured for symbol ${symbol}`);
+            }
+            return quoteResponses[symbol];
+        }
+    };
+}
+
+const yahooFinance = createYahooFinanceClient();
 
 // Initialize database and load initial prices
 let db;
