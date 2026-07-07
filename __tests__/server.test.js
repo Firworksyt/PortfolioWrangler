@@ -1,4 +1,4 @@
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import {
     calculatePriceFromQuote,
     formatApiResponse,
@@ -20,7 +20,7 @@ import {
  * Helper to parse YAML and extract config (mirrors server.js logic)
  */
 function parseConfig(yamlContent) {
-    const config = yaml.load(yamlContent);
+    const config = yamlContent.trim() ? (yaml.load(yamlContent) ?? {}) : {};
     return extractConfigSettings(config);
 }
 
