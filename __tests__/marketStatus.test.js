@@ -110,7 +110,7 @@ describe('Market Status Endpoint', () => {
     });
 
     it('each market entry should have displayName and marketState', async () => {
-        // Poll until at least one market entry appears (or timeout after 30s)
+        // Poll until at least one market entry appears (30s timeout)
         let markets = [];
         const deadline = Date.now() + 30000;
         while (markets.length === 0 && Date.now() < deadline) {

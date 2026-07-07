@@ -147,7 +147,10 @@ function createYahooFinanceClient() {
     try {
         quoteResponses = JSON.parse(mockData);
     } catch (error) {
-        throw new Error(`Invalid YAHOO_FINANCE_MOCK_DATA: ${error.message}`, { cause: error });
+        throw new Error(
+            `Invalid YAHOO_FINANCE_MOCK_DATA: expected JSON object mapping symbols to quote responses (${error.message})`,
+            { cause: error }
+        );
     }
 
     return {
