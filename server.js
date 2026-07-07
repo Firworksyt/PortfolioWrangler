@@ -153,13 +153,16 @@ function createYahooFinanceClient() {
         );
     }
 
+    if (!quoteResponses || typeof quoteResponses !== 'object' || Array.isArray(quoteResponses)) {
+        throw new Error('Invalid YAHOO_FINANCE_MOCK_DATA: expected JSON object mapping symbols to quote responses');
+    }
+
     return {
         async quote(symbol) {
-            const quote = quoteResponses[symbol];
-            if (!quote) {
-                throw new Error(`No mock Yahoo Finance quote for ${symbol}`);
+            if (!(symbol in quoteResponses)) {
+                throw new Error(`No mock Yahoo Finance quote configured for symbol ${symbol}`);
             }
-            return quote;
+            return quoteResponses[symbol];
         }
     };
 }
