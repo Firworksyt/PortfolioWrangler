@@ -18,6 +18,7 @@ export async function createTestDatabase() {
             price REAL,
             change REAL,
             change_percent REAL,
+            market_state TEXT,
             PRIMARY KEY (symbol, timestamp)
         );
 

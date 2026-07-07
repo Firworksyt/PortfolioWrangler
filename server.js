@@ -231,7 +231,7 @@ function calculateUpdateSchedule() {
             const priceData = calculatePriceFromQuote(quote);
 
             // Store in database
-            await addPriceHistory(db, symbol, priceData.finalPrice, priceData.finalChange, priceData.finalChangePercent);
+            await addPriceHistory(db, symbol, priceData.finalPrice, priceData.finalChange, priceData.finalChangePercent, priceData.marketState ?? null);
 
             console.log(`Updated ${symbol} at ${new Date().toLocaleTimeString()}`);
 

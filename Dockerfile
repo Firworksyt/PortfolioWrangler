@@ -13,10 +13,12 @@ WORKDIR /app
 # Build tools are installed as a virtual package so they can be removed after
 # npm install, keeping the image lean in case the prebuilt download fails and
 # node-gyp must compile from source as a fallback.
-COPY package*.json ./
+COPY package*.json .npmrc ./
 RUN apk add --no-cache --virtual .build-deps python3 make g++ \
-    && npm install \
+    && npm ci \
+    && npm rebuild sqlite3 --ignore-scripts=false --build-from-source \
     && apk del .build-deps
+
 
 # Copy application files
 COPY . .

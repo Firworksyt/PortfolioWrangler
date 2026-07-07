@@ -94,6 +94,70 @@ function formatChartLabel(timestamp, spansMultipleDays) {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
+// Maps Yahoo marketState values to display style for the session bar
+function marketStateStyle(state, isDark) {
+    switch (state) {
+        case 'REGULAR':
+            return { label: 'Open', color: '#16a34a', text: '#ffffff' };
+        case 'PRE':
+            return { label: 'Pre-market', color: '#d97706', text: '#ffffff' };
+        case 'POST':
+        case 'POSTPOST':
+            return { label: 'After hours', color: '#7c3aed', text: '#ffffff' };
+        case null:
+        case undefined:
+            return { label: 'No data', color: isDark ? '#2e2e2e' : '#f3f4f6', text: isDark ? '#6b7280' : '#9ca3af' };
+        default: // CLOSED, PREPRE, and anything unexpected
+            return { label: 'Closed', color: isDark ? '#4b5563' : '#d1d5db', text: isDark ? '#e5e7eb' : '#374151' };
+    }
+}
+
+// Inline Chart.js plugin: draws a segmented market-session bar below the x-axis
+function marketStateBarPlugin(states) {
+    return {
+        id: 'marketStateBar',
+        afterDraw(chart) {
+            if (!states || states.length < 2) return;
+            const { ctx, chartArea, scales } = chart;
+            const x = scales.x;
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const barTop = x.bottom + 6;
+            const barHeight = 14;
+
+            // Group consecutive points that share a display label
+            const segments = [];
+            for (let i = 0; i < states.length; i++) {
+                const style = marketStateStyle(states[i], isDark);
+                const prev = segments[segments.length - 1];
+                if (prev && prev.label === style.label) prev.end = i;
+                else segments.push({ start: i, end: i, ...style });
+            }
+
+            const px = i => x.getPixelForValue(i);
+            const mid = (a, b) => (px(a) + px(b)) / 2;
+
+            ctx.save();
+            for (const s of segments) {
+                const left = s.start === 0 ? chartArea.left : mid(s.start - 1, s.start);
+                const right = s.end === states.length - 1 ? chartArea.right : mid(s.end, s.end + 1);
+                ctx.fillStyle = s.color;
+                ctx.beginPath();
+                ctx.roundRect(left, barTop, Math.max(right - left - 1, 1), barHeight, 3);
+                ctx.fill();
+
+                ctx.font = '10px system-ui, sans-serif';
+                if (right - left > ctx.measureText(s.label).width + 12) {
+                    ctx.fillStyle = s.text;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(s.label, (left + right) / 2, barTop + barHeight / 2 + 0.5);
+                }
+            }
+            ctx.restore();
+        }
+    };
+}
+
 function renderChart(data) {
     if (data.length === 0) return;
 
@@ -103,6 +167,7 @@ function renderChart(data) {
 
     const labels = data.map(d => formatChartLabel(d.timestamp, spansMultipleDays));
     const prices = data.map(d => d.price);
+    const states = data.map(d => d.market_state ?? null);
 
     if (priceChart) priceChart.destroy();
 
@@ -126,8 +191,17 @@ function renderChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { bottom: 24 } },
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: (item) => {
+                            const s = states[item.dataIndex];
+                            return s ? `Market: ${marketStateStyle(s, false).label}` : '';
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
@@ -147,7 +221,8 @@ function renderChart(data) {
                 }
             },
             interaction: { intersect: false, mode: 'index' }
-        }
+        },
+        plugins: [marketStateBarPlugin(states)]
     });
 }
 

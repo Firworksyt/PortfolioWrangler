@@ -29,16 +29,22 @@ export async function initializeDatabase() {
         ON price_history(symbol, timestamp);
     `);
 
+    // Migration: add market_state column to databases created before it existed
+    const columns = await db.all(`PRAGMA table_info(price_history)`);
+    if (!columns.some(c => c.name === 'market_state')) {
+        await db.exec(`ALTER TABLE price_history ADD COLUMN market_state TEXT`);
+    }
+
     return db;
 }
 
 // Add price data to history
-export async function addPriceHistory(db, symbol, price, change, changePercent) {
+export async function addPriceHistory(db, symbol, price, change, changePercent, marketState = null) {
     const timestamp = new Date().toISOString();
     await db.run(
-        `INSERT OR REPLACE INTO price_history (symbol, timestamp, price, change, change_percent)
-         VALUES (?, ?, ?, ?, ?)`,
-        [symbol, timestamp, price, change, changePercent]
+        `INSERT OR REPLACE INTO price_history (symbol, timestamp, price, change, change_percent, market_state)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [symbol, timestamp, price, change, changePercent, marketState]
     );
 }
 

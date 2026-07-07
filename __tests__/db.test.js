@@ -41,6 +41,20 @@ describe('Database Module', () => {
             expect(result.change_percent).toBe(0);
         });
 
+        it('should store market state when provided', async () => {
+            await addPriceHistory(db, 'AAPL', 150.25, 1.75, 1.18, 'REGULAR');
+
+            const result = await db.get('SELECT * FROM price_history WHERE symbol = ?', ['AAPL']);
+            expect(result.market_state).toBe('REGULAR');
+        });
+
+        it('should default market state to null when omitted', async () => {
+            await addPriceHistory(db, 'AAPL', 150.25, 1.75, 1.18);
+
+            const result = await db.get('SELECT * FROM price_history WHERE symbol = ?', ['AAPL']);
+            expect(result.market_state).toBeNull();
+        });
+
         it('should create timestamp automatically', async () => {
             const beforeInsert = new Date();
             await addPriceHistory(db, 'AAPL', 150.25, 1.75, 1.18);
