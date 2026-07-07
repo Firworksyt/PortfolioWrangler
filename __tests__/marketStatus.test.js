@@ -92,6 +92,8 @@ describe('Market Status Endpoint', () => {
             ({ markets } = await res.json());
         }
 
+        // The endpoint may still be empty if no upstream quote has populated market states yet.
+        expect(Array.isArray(markets)).toBe(true);
         for (const m of markets) {
             expect(typeof m.displayName).toBe('string');
             expect(typeof m.marketState).toBe('string');
