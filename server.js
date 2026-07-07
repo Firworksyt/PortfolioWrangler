@@ -137,7 +137,25 @@ loadConfig({ initial: true });
 const PORT = process.env.PORT || config.server?.port || 3000;
 
 // Initialize Yahoo Finance
-const yahooFinance = new YahooFinance();
+function createYahooFinanceClient() {
+    const mockData = process.env.YAHOO_FINANCE_MOCK_DATA;
+    if (!mockData) {
+        return new YahooFinance();
+    }
+
+    const quoteResponses = JSON.parse(mockData);
+    return {
+        async quote(symbol) {
+            const quote = quoteResponses[symbol];
+            if (!quote) {
+                throw new Error(`No mock Yahoo Finance quote for ${symbol}`);
+            }
+            return quote;
+        }
+    };
+}
+
+const yahooFinance = createYahooFinanceClient();
 
 // Initialize database and load initial prices
 let db;

@@ -25,7 +25,9 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci --ignore-scripts=false
+      run: |
+        npm ci
+        npm rebuild sqlite3 --ignore-scripts=false
       
     - name: Run ESLint
       run: npx eslint "**/*.js"
