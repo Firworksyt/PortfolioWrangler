@@ -25,8 +25,8 @@ const mockQuotes = JSON.stringify({
         regularMarketChange: 2,
         regularMarketChangePercent: 0.446,
         marketState: 'REGULAR',
-        exchange: 'PCX',
-        fullExchangeName: 'NYSE Arca',
+        exchange: 'NYQ',
+        fullExchangeName: 'New York Stock Exchange',
     }
 });
 

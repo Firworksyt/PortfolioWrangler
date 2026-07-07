@@ -143,7 +143,13 @@ function createYahooFinanceClient() {
         return new YahooFinance();
     }
 
-    const quoteResponses = JSON.parse(mockData);
+    let quoteResponses;
+    try {
+        quoteResponses = JSON.parse(mockData);
+    } catch (error) {
+        throw new Error(`Invalid YAHOO_FINANCE_MOCK_DATA: ${error.message}`, { cause: error });
+    }
+
     return {
         async quote(symbol) {
             const quote = quoteResponses[symbol];
