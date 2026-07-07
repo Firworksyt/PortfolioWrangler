@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package*.json .npmrc ./
 RUN apk add --no-cache --virtual .build-deps python3 make g++ \
     && npm ci \
-    && npm rebuild sqlite3 --ignore-scripts=false --build-from-source \
+    && npm rebuild sqlite3 --ignore-scripts=false \
     && apk del .build-deps
 
 
