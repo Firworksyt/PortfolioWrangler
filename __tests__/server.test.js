@@ -21,7 +21,7 @@ import {
  */
 function parseConfig(yamlContent) {
     const trimmedContent = yamlContent.trim();
-    const config = trimmedContent ? (load(trimmedContent) ?? {}) : {};
+    const config = trimmedContent ? load(trimmedContent) : {};
     return extractConfigSettings(config);
 }
 
