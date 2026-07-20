@@ -481,13 +481,14 @@ async function showPriceHistory(symbol) {
 
         chartTitle.textContent = `${symbol} Price History`;
 
-        // Reset range buttons to "All"
+        // Reset range buttons to default "3D"
+        const defaultHours = 72;
         document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-        const allBtn = document.querySelector('.range-btn[data-hours=""]');
-        if (allBtn) allBtn.classList.add('active');
+        const defaultBtn = document.querySelector(`.range-btn[data-hours="${defaultHours}"]`);
+        if (defaultBtn) defaultBtn.classList.add('active');
 
         modal.style.display = 'block';
-        renderChart(currentHistoryData);
+        renderChart(filterByHours(currentHistoryData, defaultHours));
     } catch (error) {
         console.error('Error fetching price history:', error);
         alert('Error loading price history');
