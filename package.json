@@ -38,7 +38,7 @@
     "qs": "6.15.3",
     "tar": "7.5.22",
     "minimatch": "10.2.3",
-    "fast-uri": "3.1.6",
+    "fast-uri": "3.1.7",
     "@hono/node-server": "1.19.17",
     "ip-address": "10.7.0"
   },
