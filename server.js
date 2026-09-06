@@ -217,7 +217,7 @@ async function getBxPayloadForSymbol(symbol) {
         bxCache.set(symbol, { fetchedAt: Date.now(), payload });
         return payload;
     } catch (error) {
-        console.error(`BX Trender fetch failed for ${symbol}:`, error.message);
+        console.error('BX Trender fetch failed for', symbol, error.message);
         const empty = { symbol, asOf: null, bxShort: null, direction: null, magnitude: null };
         // Short negative cache to avoid hammering on repeated failures
         bxCache.set(symbol, { fetchedAt: Date.now() - BX_CACHE_TTL_MS + 5 * 60 * 1000, payload: empty });
