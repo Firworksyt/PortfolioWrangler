@@ -9,6 +9,7 @@ import { networkInterfaces } from 'os';
 import { calculatePriceFromQuote, formatApiResponse, formatCachedResponse } from './lib/priceCalculation.js';
 import { parseConfigFile, diffWatchlist } from './lib/configLoader.js';
 import { getAppVersion } from './lib/version.js';
+import { computeBxPayload, BX_MIN_BARS } from './lib/bxTrender.js';
 
 const app = express();
 
@@ -92,6 +93,7 @@ function loadConfig({ initial = false } = {}) {
             // Clean up latestPrices for removed symbols
             for (const symbol of diff.removed) {
                 latestPrices.delete(symbol);
+                bxCache.delete(symbol);
             }
 
             // Reset market states — will repopulate on next poll cycle
@@ -169,9 +171,66 @@ function createYahooFinanceClient() {
 
 const yahooFinance = createYahooFinanceClient();
 
+// ---- BX Trender (short-term) fetch ----
+const BX_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function dateOnlyISO(d) {
+    const dt = d instanceof Date ? d : new Date(d);
+    // Use UTC calendar date from Yahoo bar timestamps
+    return dt.toISOString().slice(0, 10);
+}
+
+/**
+ * Fetch ~1y of adjusted daily closes via yahoo-finance2 chart().
+ * @returns {Promise<{ dates: string[], closes: number[] }>}
+ */
+async function fetchAdjustedDailyCloses(symbol) {
+    if (typeof yahooFinance.chart !== 'function') {
+        throw new Error('Yahoo chart API unavailable (mock client?)');
+    }
+    const period1 = new Date();
+    period1.setFullYear(period1.getFullYear() - 1);
+    const result = await yahooFinance.chart(symbol, {
+        period1,
+        interval: '1d',
+    });
+    const quotes = result?.quotes ?? [];
+    const dates = [];
+    const closes = [];
+    for (const q of quotes) {
+        const adj = q.adjclose ?? q.close;
+        if (typeof adj !== 'number' || !Number.isFinite(adj) || !q.date) continue;
+        dates.push(dateOnlyISO(q.date));
+        closes.push(adj);
+    }
+    return { dates, closes };
+}
+
+async function getBxPayloadForSymbol(symbol) {
+    const cached = bxCache.get(symbol);
+    if (cached && Date.now() - cached.fetchedAt < BX_CACHE_TTL_MS) {
+        return cached.payload;
+    }
+    try {
+        const { dates, closes } = await fetchAdjustedDailyCloses(symbol);
+        const payload = computeBxPayload(symbol, dates, closes, { minBars: BX_MIN_BARS });
+        bxCache.set(symbol, { fetchedAt: Date.now(), payload });
+        return payload;
+    } catch (error) {
+        console.error('BX Trender fetch failed for', symbol, error.message);
+        const empty = { symbol, asOf: null, bxShort: null, direction: null, magnitude: null };
+        // Short negative cache to avoid hammering on repeated failures
+        bxCache.set(symbol, { fetchedAt: Date.now() - BX_CACHE_TTL_MS + 5 * 60 * 1000, payload: empty });
+        return empty;
+    }
+}
+
+
 // Initialize database and load initial prices
 let db;
 let latestPrices = new Map();
+const bxCache = new Map(); // symbol -> { fetchedAt, payload }
+
 
 async function loadInitialPricesForSymbols(symbols) {
     for (const symbol of symbols) {
@@ -349,6 +408,33 @@ app.get('/api/watchlist', (req, res) => {
 // Version endpoint
 app.get('/api/version', (req, res) => {
     res.json(appVersion);
+});
+
+// BX Trender (short-term) for watchlist cards
+app.get('/api/bx-trender', async (req, res) => {
+    try {
+        const symbols = watchlist.filter((s) => !cryptoTickers.includes(s));
+        const results = await Promise.all(symbols.map((symbol) => getBxPayloadForSymbol(symbol)));
+        const bySymbol = {};
+        for (const payload of results) {
+            bySymbol[payload.symbol] = payload;
+        }
+        res.json({ bySymbol, asOf: new Date().toISOString() });
+    } catch (error) {
+        console.error('Error fetching BX Trender:', error);
+        res.status(500).json({ error: 'Failed to fetch BX Trender' });
+    }
+});
+
+app.get('/api/bx-trender/:symbol', async (req, res) => {
+    try {
+        const symbol = req.params.symbol;
+        const payload = await getBxPayloadForSymbol(symbol);
+        res.json(payload);
+    } catch (error) {
+        console.error('Error fetching BX Trender:', error);
+        res.status(500).json({ error: 'Failed to fetch BX Trender' });
+    }
 });
 
 // Market status endpoint

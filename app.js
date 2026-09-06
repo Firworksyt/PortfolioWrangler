@@ -1,4 +1,5 @@
 import { buildFundamentalsHTML } from './lib/formatters.js';
+import { formatBxChip } from './lib/bxTrender.js';
 
 let stocks = [];
 let sections = [];
@@ -281,6 +282,11 @@ function createStockCard(symbol) {
             <div class="change-info">Loading...</div>
             <div class="last-updated">Loading...</div>
         </div>
+        <div class="bx-trender" hidden>
+            <span class="bx-label">BX</span>
+            <span class="bx-value"></span>
+            <span class="bx-chip"></span>
+        </div>
     `;
     return stockCard;
 }
@@ -323,6 +329,7 @@ async function loadWatchlist() {
         });
 
         fetchAllStockPrices();
+        fetchBxTrender();
     } catch (error) {
         console.error('Error loading watchlist:', error);
     }
@@ -373,6 +380,7 @@ async function checkWatchlistChanges() {
             });
 
             fetchAllStockPrices();
+            fetchBxTrender();
         }
     } catch (error) {
         console.error('Error checking watchlist changes:', error);
@@ -534,6 +542,47 @@ function fetchAllStockPrices() {
     });
 }
 
+function displayBxTrender(symbol, payload) {
+    const stockCard = document.querySelector(`.stock-card[data-symbol="${symbol}"]`);
+    if (!stockCard) return;
+    const row = stockCard.querySelector('.bx-trender');
+    if (!row) return;
+
+    if (!payload || payload.bxShort == null || !Number.isFinite(payload.bxShort)) {
+        row.hidden = true;
+        return;
+    }
+
+    const valueEl = row.querySelector('.bx-value');
+    const chipEl = row.querySelector('.bx-chip');
+    const sign = payload.bxShort > 0 ? '+' : '';
+    valueEl.textContent = `${sign}${payload.bxShort.toFixed(1)}`;
+    valueEl.className = 'bx-value ' + (payload.bxShort >= 0 ? 'bx-positive' : 'bx-negative');
+
+    const chip = formatBxChip(payload.direction, payload.magnitude);
+    chipEl.textContent = chip;
+    chipEl.className = 'bx-chip';
+    if (payload.magnitude === 'away') chipEl.classList.add('bx-away');
+    else if (payload.magnitude === 'toward') chipEl.classList.add('bx-toward');
+    else chipEl.classList.add('bx-flat');
+
+    row.hidden = false;
+}
+
+async function fetchBxTrender() {
+    try {
+        const response = await fetch('/api/bx-trender');
+        if (!response.ok) return;
+        const data = await response.json();
+        const bySymbol = data.bySymbol || {};
+        for (const symbol of Object.keys(bySymbol)) {
+            displayBxTrender(symbol, bySymbol[symbol]);
+        }
+    } catch (error) {
+        console.error('Error fetching BX Trender:', error);
+    }
+}
+
 async function fetchMarketStatus() {
     try {
         const res = await fetch('/api/market-status');
@@ -616,4 +665,5 @@ setInterval(() => {
     fetchAllStockPrices();
     checkForUpdates();
     fetchMarketStatus();
+    fetchBxTrender();
 }, REFRESH_INTERVAL);

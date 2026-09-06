@@ -593,3 +593,59 @@ h1 {
 .sort-btn.active { background: var(--accent-color); color: #fff; border-color: var(--accent-color); }
 
 @media (max-width: 600px) { .sort-controls { display: none; } }
+
+/* BX Trender row on watchlist cards */
+.bx-trender {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    color: var(--muted-color);
+}
+
+.bx-trender[hidden] {
+    display: none !important;
+}
+
+.bx-trender .bx-label {
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+}
+
+.bx-trender .bx-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-color);
+}
+
+.bx-trender .bx-value.bx-positive { color: var(--positive-color); }
+.bx-trender .bx-value.bx-negative { color: var(--negative-color); }
+
+.bx-trender .bx-chip {
+    margin-left: auto;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    background: var(--card-bg-alt, rgba(127,127,127,0.12));
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.bx-trender .bx-chip.bx-away {
+    border-color: color-mix(in srgb, var(--positive-color) 40%, var(--border-color));
+}
+
+.bx-trender .bx-chip.bx-toward {
+    border-color: color-mix(in srgb, var(--negative-color) 35%, var(--border-color));
+}
+
+.bx-trender .bx-chip.bx-flat {
+    opacity: 0.7;
+}

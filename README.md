@@ -14,6 +14,7 @@ A self-hosted, realish-time stock dashboard that displays current prices includi
 - 📝 Configurable watchlist with optional named sections via YAML
 - 💾 Historical price tracking
 - 🎨 Clean, responsive UI with price change animations
+- 📈 BX Trender (short) on each watchlist card: value plus away/toward/flat chip vs prior day (hidden when history is insufficient)
 
 ## Quick Start
 
