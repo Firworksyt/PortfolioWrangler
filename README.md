@@ -156,15 +156,6 @@ The project uses a simple architecture:
 - `styles.css`: UI styling
 - `config.yaml`: Watchlist configuration
 
-## Known Issues
-
-### Security
-
-- Medium severity vulnerability in `inflight@1.0.6` (dependency of sqlite3): [SNYK-JS-INFLIGHT-6095116](https://security.snyk.io/vuln/SNYK-JS-INFLIGHT-6095116)
-  - No upgrade path or patch available
-  - Only affects development dependencies
-  - Will be resolved when a fix is available upstream
-
 ## Planned Updates
 
 - Cleanup structure to make it more maintainable
