@@ -1,5 +1,6 @@
 import { buildFundamentalsHTML } from './lib/formatters.js';
 import { formatBxChip } from './lib/bxTrender.js';
+import { compareByAbsBx } from './lib/bxSort.js';
 
 let stocks = [];
 let sections = [];
@@ -14,6 +15,7 @@ let currentHistoryData = [];
 let currentHistorySymbol = null;
 let initialCommitHash = null;
 let currentSort = localStorage.getItem('sort') ?? 'default';
+const lastBx = {};
 
 // Dark mode initialization
 const darkModeToggle = document.getElementById('darkModeToggle');
@@ -70,6 +72,7 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
         applySortToContainer();
     });
 });
+
 
 // Range buttons
 document.querySelectorAll('.range-btn').forEach(btn => {
@@ -505,16 +508,21 @@ async function showPriceHistory(symbol) {
 
 function applySortToContainer() {
     const container = document.getElementById('stocks-container');
+    const cards = [...container.querySelectorAll('.stock-card')];
 
     if (currentSort !== 'default') {
         // Hide section headers and sort all cards globally
         container.querySelectorAll('.section-header').forEach(h => { h.style.display = 'none'; });
-        const cards = [...container.querySelectorAll('.stock-card')];
         cards.sort((a, b) => {
             const symA = a.dataset.symbol, symB = b.dataset.symbol;
             if (currentSort === 'gainers') return (lastPrices[symB]?.changePercent ?? 0) - (lastPrices[symA]?.changePercent ?? 0);
             if (currentSort === 'losers')  return (lastPrices[symA]?.changePercent ?? 0) - (lastPrices[symB]?.changePercent ?? 0);
             if (currentSort === 'alpha')   return symA.localeCompare(symB);
+            if (currentSort === 'bx') {
+                const cmp = compareByAbsBx(lastBx[symA], lastBx[symB]);
+                return cmp !== 0 ? cmp : symA.localeCompare(symB);
+            }
+            return 0;
         });
         cards.forEach(c => container.appendChild(c));
     } else {
@@ -524,8 +532,8 @@ function applySortToContainer() {
         sections.forEach((section, i) => {
             const header = headers[i];
             if (header) container.appendChild(header);
-            const cards = [...container.querySelectorAll(`.stock-card[data-section-index="${i}"]`)];
-            cards.forEach(c => container.appendChild(c));
+            const sectionCards = [...container.querySelectorAll(`.stock-card[data-section-index="${i}"]`)];
+            sectionCards.forEach(c => container.appendChild(c));
         });
     }
 }
@@ -547,6 +555,8 @@ function displayBxTrender(symbol, payload) {
     if (!stockCard) return;
     const row = stockCard.querySelector('.bx-trender');
     if (!row) return;
+
+    lastBx[symbol] = payload || null;
 
     if (!payload || payload.bxShort == null || !Number.isFinite(payload.bxShort)) {
         row.hidden = true;
@@ -578,6 +588,7 @@ async function fetchBxTrender() {
         for (const symbol of Object.keys(bySymbol)) {
             displayBxTrender(symbol, bySymbol[symbol]);
         }
+        applySortToContainer();
     } catch (error) {
         console.error('Error fetching BX Trender:', error);
     }

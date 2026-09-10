@@ -592,6 +592,7 @@ h1 {
 .sort-btn:hover { background: var(--card-bg-alt); color: var(--text-color); }
 .sort-btn.active { background: var(--accent-color); color: #fff; border-color: var(--accent-color); }
 
+
 @media (max-width: 600px) { .sort-controls { display: none; } }
 
 /* BX Trender row on watchlist cards */
