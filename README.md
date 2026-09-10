@@ -15,6 +15,7 @@ A self-hosted, realish-time stock dashboard that displays current prices includi
 - 💾 Historical price tracking
 - 🎨 Clean, responsive UI with price change animations
 - 📈 BX Trender (short) on each watchlist card: value plus away/toward/flat chip vs prior day (hidden when history is insufficient)
+- 🔢 Sort watchlist by `|BX|` (high→low) and filter cards by away / toward / all
 
 ## Quick Start
 
@@ -136,7 +137,7 @@ sections:
       - SPY
 ```
 
-Section headers appear above each group on the dashboard. When sorting by Gainers, Losers, or A–Z, headers are hidden and all cards are sorted globally; switching back to Default restores the sectioned layout.
+Section headers appear above each group on the dashboard. When sorting by Gainers, Losers, A–Z, or `|BX|`, headers are hidden and all cards are sorted globally; switching back to Default restores the sectioned layout. `|BX|` sorts by absolute BX high→low (null/insufficient BX sinks to the bottom). Away/Toward chips filter by the magnitude chip; All shows every card.
 
 > **Backward compatibility:** The legacy `watchlist` key (a flat list of symbols) is still supported — no section headers will be rendered, and existing configs work without any changes.
 
