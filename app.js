@@ -278,7 +278,10 @@ function createStockCard(symbol) {
     stockCard.setAttribute('data-symbol', symbol);
     stockCard.onclick = () => showPriceHistory(symbol);
     stockCard.innerHTML = `
-        <h2>${symbol}</h2>
+        <div class="card-header">
+            <h2>${symbol}</h2>
+            <span class="earnings-badge" hidden></span>
+        </div>
         <div class="company-name">Loading...</div>
         <div class="stock-price">Loading...</div>
         <div class="stock-details">
@@ -333,6 +336,7 @@ async function loadWatchlist() {
 
         fetchAllStockPrices();
         fetchBxTrender();
+    fetchEarnings();
     } catch (error) {
         console.error('Error loading watchlist:', error);
     }
@@ -384,6 +388,7 @@ async function checkWatchlistChanges() {
 
             fetchAllStockPrices();
             fetchBxTrender();
+    fetchEarnings();
         }
     } catch (error) {
         console.error('Error checking watchlist changes:', error);
@@ -579,6 +584,39 @@ function displayBxTrender(symbol, payload) {
     row.hidden = false;
 }
 
+
+function displayEarnings(symbol, payload) {
+    const stockCard = document.querySelector(`.stock-card[data-symbol="${symbol}"]`);
+    if (!stockCard) return;
+    const badge = stockCard.querySelector('.earnings-badge');
+    if (!badge) return;
+    if (!payload || !payload.label) {
+        badge.hidden = true;
+        badge.textContent = '';
+        badge.removeAttribute('title');
+        return;
+    }
+    badge.textContent = payload.label;
+    badge.title = payload.date
+        ? (payload.isEstimate ? `Next earnings (est.) ${payload.date}` : `Next earnings ${payload.date}`)
+        : 'Next earnings';
+    badge.hidden = false;
+}
+
+async function fetchEarnings() {
+    try {
+        const response = await fetch('/api/earnings');
+        if (!response.ok) return;
+        const data = await response.json();
+        const bySymbol = data.bySymbol || {};
+        for (const symbol of Object.keys(bySymbol)) {
+            displayEarnings(symbol, bySymbol[symbol]);
+        }
+    } catch (error) {
+        console.error('Error fetching earnings:', error);
+    }
+}
+
 async function fetchBxTrender() {
     try {
         const response = await fetch('/api/bx-trender');
@@ -677,4 +715,5 @@ setInterval(() => {
     checkForUpdates();
     fetchMarketStatus();
     fetchBxTrender();
+    fetchEarnings();
 }, REFRESH_INTERVAL);
