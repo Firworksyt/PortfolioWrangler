@@ -1,6 +1,6 @@
 import { buildFundamentalsHTML } from './lib/formatters.js';
 import { formatBxChip } from './lib/bxTrender.js';
-import { compareByAbsBx, matchesBxFilter } from './lib/bxSort.js';
+import { compareByAbsBx } from './lib/bxSort.js';
 
 let stocks = [];
 let sections = [];
@@ -15,7 +15,6 @@ let currentHistoryData = [];
 let currentHistorySymbol = null;
 let initialCommitHash = null;
 let currentSort = localStorage.getItem('sort') ?? 'default';
-let currentBxFilter = localStorage.getItem('bxFilter') ?? 'all';
 const lastBx = {};
 
 // Dark mode initialization
@@ -74,17 +73,6 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
     });
 });
 
-// BX magnitude filter chips
-document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.bxFilter === currentBxFilter);
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentBxFilter = btn.dataset.bxFilter;
-        localStorage.setItem('bxFilter', currentBxFilter);
-        applySortToContainer();
-    });
-});
 
 // Range buttons
 document.querySelectorAll('.range-btn').forEach(btn => {
@@ -518,14 +506,6 @@ async function showPriceHistory(symbol) {
     }
 }
 
-function applyBxFilterVisibility(cards) {
-    cards.forEach((card) => {
-        const payload = lastBx[card.dataset.symbol];
-        const show = matchesBxFilter(payload, currentBxFilter);
-        card.style.display = show ? '' : 'none';
-    });
-}
-
 function applySortToContainer() {
     const container = document.getElementById('stocks-container');
     const cards = [...container.querySelectorAll('.stock-card')];
@@ -556,8 +536,6 @@ function applySortToContainer() {
             sectionCards.forEach(c => container.appendChild(c));
         });
     }
-
-    applyBxFilterVisibility([...container.querySelectorAll('.stock-card')]);
 }
 
 function fetchAllStockPrices() {

@@ -1,4 +1,4 @@
-import { absBx, compareByAbsBx, matchesBxFilter } from '../lib/bxSort.js';
+import { absBx, compareByAbsBx } from '../lib/bxSort.js';
 
 describe('absBx', () => {
     it('returns absolute value for finite bxShort', () => {
@@ -37,20 +37,5 @@ describe('compareByAbsBx', () => {
         expect(absBx(rows[1])).toBe(2);
         expect(absBx(rows[2])).toBeNull();
         expect(absBx(rows[3])).toBeNull();
-    });
-});
-
-describe('matchesBxFilter', () => {
-    it('all passes everything including null', () => {
-        expect(matchesBxFilter(null, 'all')).toBe(true);
-        expect(matchesBxFilter({ magnitude: 'away' }, 'all')).toBe(true);
-    });
-
-    it('away/toward require matching magnitude; null fails', () => {
-        expect(matchesBxFilter({ magnitude: 'away' }, 'away')).toBe(true);
-        expect(matchesBxFilter({ magnitude: 'toward' }, 'away')).toBe(false);
-        expect(matchesBxFilter({ magnitude: 'flat' }, 'toward')).toBe(false);
-        expect(matchesBxFilter(null, 'away')).toBe(false);
-        expect(matchesBxFilter({ magnitude: null }, 'toward')).toBe(false);
     });
 });
