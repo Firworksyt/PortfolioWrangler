@@ -10,6 +10,7 @@ import { calculatePriceFromQuote, formatApiResponse, formatCachedResponse } from
 import { parseConfigFile, diffWatchlist } from './lib/configLoader.js';
 import { getAppVersion } from './lib/version.js';
 import { computeBxPayload, BX_MIN_BARS } from './lib/bxTrender.js';
+import { buildEarningsPayload } from './lib/earnings.js';
 
 const app = express();
 
@@ -206,6 +207,36 @@ async function fetchAdjustedDailyCloses(symbol) {
     return { dates, closes };
 }
 
+
+async function fetchCalendarEvents(symbol) {
+    if (typeof yahooFinance.quoteSummary !== 'function') {
+        throw new Error('Yahoo quoteSummary API unavailable (mock client?)');
+    }
+    const result = await yahooFinance.quoteSummary(symbol, { modules: ['calendarEvents'] });
+    return result?.calendarEvents ?? null;
+}
+
+async function getEarningsPayloadForSymbol(symbol) {
+    const cached = earningsCache.get(symbol);
+    if (cached && Date.now() - cached.fetchedAt < EARNINGS_CACHE_TTL_MS) {
+        return cached.payload;
+    }
+    try {
+        const calendarEvents = await fetchCalendarEvents(symbol);
+        const payload = buildEarningsPayload(symbol, calendarEvents);
+        earningsCache.set(symbol, { fetchedAt: Date.now(), payload });
+        return payload;
+    } catch (error) {
+        console.error('Earnings fetch failed for', symbol, error.message);
+        const empty = { symbol, date: null, label: null, isEstimate: false };
+        earningsCache.set(symbol, {
+            fetchedAt: Date.now() - EARNINGS_CACHE_TTL_MS + 30 * 60 * 1000,
+            payload: empty,
+        });
+        return empty;
+    }
+}
+
 async function getBxPayloadForSymbol(symbol) {
     const cached = bxCache.get(symbol);
     if (cached && Date.now() - cached.fetchedAt < BX_CACHE_TTL_MS) {
@@ -230,6 +261,8 @@ async function getBxPayloadForSymbol(symbol) {
 let db;
 let latestPrices = new Map();
 const bxCache = new Map(); // symbol -> { fetchedAt, payload }
+const earningsCache = new Map(); // symbol -> { fetchedAt, payload }
+const EARNINGS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 
 async function loadInitialPricesForSymbols(symbols) {
@@ -434,6 +467,34 @@ app.get('/api/bx-trender/:symbol', async (req, res) => {
     } catch (error) {
         console.error('Error fetching BX Trender:', error);
         res.status(500).json({ error: 'Failed to fetch BX Trender' });
+    }
+});
+
+
+// Next earnings for watchlist cards
+app.get('/api/earnings', async (req, res) => {
+    try {
+        const symbols = watchlist.filter((s) => !cryptoTickers.includes(s));
+        const results = await Promise.all(symbols.map((symbol) => getEarningsPayloadForSymbol(symbol)));
+        const bySymbol = {};
+        for (const payload of results) {
+            bySymbol[payload.symbol] = payload;
+        }
+        res.json({ bySymbol, asOf: new Date().toISOString() });
+    } catch (error) {
+        console.error('Error fetching earnings:', error);
+        res.status(500).json({ error: 'Failed to fetch earnings' });
+    }
+});
+
+app.get('/api/earnings/:symbol', async (req, res) => {
+    try {
+        const symbol = req.params.symbol;
+        const payload = await getEarningsPayloadForSymbol(symbol);
+        res.json(payload);
+    } catch (error) {
+        console.error('Error fetching earnings:', error);
+        res.status(500).json({ error: 'Failed to fetch earnings' });
     }
 });
 

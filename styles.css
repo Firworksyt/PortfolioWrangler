@@ -180,6 +180,35 @@ h1 {
     box-shadow: var(--card-shadow-hover), 0 0 24px rgba(248, 113, 113, 0.09);
 }
 
+
+.card-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.card-header h2 {
+    margin: 0;
+}
+
+.earnings-badge {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-color, #3b82f6) 18%, transparent);
+    color: var(--text-color);
+    border: 1px solid color-mix(in srgb, var(--accent-color, #3b82f6) 35%, transparent);
+    white-space: nowrap;
+}
+
+.earnings-badge[hidden] {
+    display: none !important;
+}
+
 .stock-card h2 {
     margin: 0;
     color: var(--text-color);
