@@ -24,7 +24,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high
+          args: --severity-threshold=high --policy-path=.snyk
           
       - name: Run npm audit
         run: npm audit --omit=dev --audit-level=high

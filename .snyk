@@ -1,0 +1,10 @@
+version: v1.25.0
+ignore:
+  SNYK-JS-HTTPCACHESEMANTICS-19964064:
+    - 'sqlite3 > node-gyp > make-fetch-happen > http-cache-semantics':
+        reason: No patched upgrade is currently available, and this finding is only introduced through sqlite3's optional node-gyp build dependency.
+        expires: 2027-03-22T00:00:00.000Z
+  SNYK-JS-HTTPCACHESEMANTICS-19964068:
+    - 'sqlite3 > node-gyp > make-fetch-happen > http-cache-semantics':
+        reason: No patched upgrade is currently available, and this finding is only introduced through sqlite3's optional node-gyp build dependency.
+        expires: 2027-03-22T00:00:00.000Z
