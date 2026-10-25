@@ -18,30 +18,32 @@
   "author": "",
   "license": "WTFPL",
   "dependencies": {
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "js-yaml": "^5.4.2",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "js-yaml": "^5.4.3",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1",
-    "yahoo-finance2": "^4.0.2"
+    "yahoo-finance2": "^4.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.10.0",
-    "globals": "^17.12.0",
-    "jest": "^30.5.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "jest": "^30.5.2",
     "nodemon": "^3.1.14",
-    "undici": "^8.10.2"
+    "undici": "^8.11.2"
   },
   "overrides": {
-    "brace-expansion": "5.0.9",
-    "qs": "6.15.3",
+    "brace-expansion": "5.0.12",
+    "qs": "6.16.1",
     "tar": "7.5.22",
-    "minimatch": "10.2.3",
-    "fast-uri": "3.1.7",
+    "minimatch": "10.2.6",
+    "fast-uri": "3.1.9",
     "@hono/node-server": "1.19.17",
-    "ip-address": "10.7.0",
-    "proxy-addr": "2.0.8"
+    "ip-address": "10.7.5",
+    "proxy-addr": "2.0.8",
+    "body-parser": "2.4.0",
+    "http-cache-semantics": "4.3.0"
   },
   "type": "module"
 }

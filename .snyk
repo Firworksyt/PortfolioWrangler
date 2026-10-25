@@ -8,3 +8,7 @@ ignore:
     - 'sqlite3 > node-gyp > make-fetch-happen > http-cache-semantics':
         reason: No patched upgrade is currently available, and this finding is only introduced through sqlite3's optional node-gyp build dependency.
         expires: 2027-03-22T00:00:00.000Z
+  SNYK-JS-PICOMATCH-21248802:
+    - 'sqlite3 > node-gyp > tinyglobby > picomatch':
+        reason: picomatch ReDoS, no patched release available. Transitive build-time path via sqlite3 > node-gyp > tinyglobby; not reachable at runtime. Time-boxed ignore approved by Firworks; revisit when a patched picomatch ships.
+        expires: 2026-11-23T00:00:00.000Z
