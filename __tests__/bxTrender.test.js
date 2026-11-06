@@ -6,7 +6,10 @@ import {
     classifyBxMove,
     computeBxPayload,
     formatBxChip,
+    classifyBxBarColor,
+    buildBxHistory,
     BX_MIN_BARS,
+    BX_HISTORY_BARS,
 } from '../lib/bxTrender.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -161,5 +164,105 @@ describe('rma', () => {
         expect(out[2]).toBeCloseTo(2, 10);
         const alpha = 1 / 3;
         expect(out[3]).toBeCloseTo(alpha * 4 + (1 - alpha) * 2, 10);
+    });
+});
+
+describe('classifyBxBarColor (mini strip)', () => {
+    it('colors positive bars by direction vs prior day', () => {
+        expect(classifyBxBarColor(12, 8)).toBe('pos_rising');
+        expect(classifyBxBarColor(8, 12)).toBe('pos_falling');
+    });
+
+    it('colors negative bars by expansion vs prior day', () => {
+        expect(classifyBxBarColor(-20, -10)).toBe('neg_expanding');
+        expect(classifyBxBarColor(-10, -20)).toBe('neg_contracting');
+    });
+
+    it('flat days: equal positive is pos_falling, equal negative is neg_contracting', () => {
+        expect(classifyBxBarColor(5, 5)).toBe('pos_falling');
+        expect(classifyBxBarColor(-5, -5)).toBe('neg_contracting');
+        expect(classifyBxBarColor(0, 0)).toBe('pos_falling');
+    });
+
+    it('zero counts as positive', () => {
+        expect(classifyBxBarColor(0, -3)).toBe('pos_rising');
+        expect(classifyBxBarColor(0, 4)).toBe('pos_falling');
+    });
+
+    it('zero cross: first bar on the other side of zero', () => {
+        expect(classifyBxBarColor(2, -6)).toBe('pos_rising');
+        expect(classifyBxBarColor(-1, 3)).toBe('neg_expanding');
+    });
+
+    it('no prior bar colors by sign only', () => {
+        expect(classifyBxBarColor(7, null)).toBe('pos_rising');
+        expect(classifyBxBarColor(0, undefined)).toBe('pos_rising');
+        expect(classifyBxBarColor(-7, null)).toBe('neg_expanding');
+    });
+});
+
+describe('buildBxHistory', () => {
+    const dates = Array.from({ length: 14 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`);
+
+    it('returns 10 bars oldest → newest, using the 11th prior bar to color the first', () => {
+        // idx:      0     1   2   3   4   5  6  7  8  9 10  11  12  13
+        const s = [null, -12, -9, -9, -4, -6, 0, 0, 3, 8, 8, 5, -2, -2];
+        const h = buildBxHistory(s, dates, 13);
+        expect(h).toHaveLength(BX_HISTORY_BARS);
+        expect(h[0].date).toBe('2026-10-05');
+        expect(h.at(-1).date).toBe('2026-10-14');
+        expect(h.map((b) => b.value)).toEqual(s.slice(4));
+        expect(h.map((b) => b.color)).toEqual([
+            'neg_contracting', // -4 vs -9 (11th prior bar)
+            'neg_expanding',   // -6 vs -4
+            'pos_rising',      // 0 vs -6 (zero cross, 0 is positive)
+            'pos_falling',     // 0 vs 0 (flat positive)
+            'pos_rising',      // 3 vs 0
+            'pos_rising',      // 8 vs 3
+            'pos_falling',     // 8 vs 8 (flat positive)
+            'pos_falling',     // 5 vs 8
+            'neg_expanding',   // -2 vs 5 (cross below zero)
+            'neg_contracting', // -2 vs -2 (flat negative)
+        ]);
+    });
+
+    it('short history: fewer bars, first colored by sign', () => {
+        const s = [null, null, null, null, null, null, null, null, null, null, null, -3, -1, 2];
+        const h = buildBxHistory(s, dates, 13);
+        expect(h.map((b) => b.color)).toEqual(['neg_expanding', 'neg_contracting', 'pos_rising']);
+    });
+});
+
+describe('computeBxPayload history (frozen fixtures)', () => {
+    for (const file of ['nke_daily.json', 'de_daily.json', 'eix_daily.json']) {
+        it(`${file} returns 10 colored bars ending at asOf`, () => {
+            const fix = loadFixture(file);
+            const payload = computeBxPayload(fix.symbol, fix.dates, fix.closes);
+            const series = bxShortSeries(fix.closes);
+            const end = fix.dates.indexOf(payload.asOf);
+
+            expect(payload.history).toHaveLength(BX_HISTORY_BARS);
+            expect(payload.history.at(-1).date).toBe(payload.asOf);
+            expect(payload.history.at(-1).value).toBe(payload.bxShort);
+            payload.history.forEach((bar, k) => {
+                const idx = end - (BX_HISTORY_BARS - 1) + k;
+                expect(bar.date).toBe(fix.dates[idx]);
+                expect(bar.value).toBe(series[idx]);
+                expect(bar.color).toBe(classifyBxBarColor(series[idx], series[idx - 1]));
+            });
+        });
+    }
+
+    it('keeps existing fields unchanged', () => {
+        const fix = loadFixture('nke_daily.json');
+        const payload = computeBxPayload(fix.symbol, fix.dates, fix.closes);
+        expect(Object.keys(payload)).toEqual(['symbol', 'asOf', 'bxShort', 'direction', 'magnitude', 'history']);
+        expect(payload.direction).toBe('rising');
+        expect(payload.magnitude).toBe('away');
+    });
+
+    it('empty payload has an empty history', () => {
+        const payload = computeBxPayload('TEST', [], []);
+        expect(payload.history).toEqual([]);
     });
 });
