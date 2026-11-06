@@ -624,11 +624,8 @@ h1 {
 
 @media (max-width: 600px) { .sort-controls { display: none; } }
 
-/* BX Trender row on watchlist cards */
+/* BX Trender mini strip on watchlist cards (Option 2b) */
 .bx-trender {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
     margin-top: 0.5rem;
     padding-top: 0.5rem;
     border-top: 1px solid var(--border-color);
@@ -636,8 +633,15 @@ h1 {
     color: var(--muted-color);
 }
 
-.bx-trender[hidden] {
+.bx-trender[hidden],
+.bx-trender .bx-strip[hidden] {
     display: none !important;
+}
+
+.bx-trender .bx-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
 .bx-trender .bx-label {
@@ -648,34 +652,48 @@ h1 {
     font-size: 0.6875rem;
 }
 
-.bx-trender .bx-value {
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-color);
-}
-
-.bx-trender .bx-value.bx-positive { color: var(--positive-color); }
-.bx-trender .bx-value.bx-negative { color: var(--negative-color); }
-
-.bx-trender .bx-chip {
+.bx-trender .bx-tag {
     margin-left: auto;
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
-    font-size: 0.6875rem;
-    font-weight: 500;
-    background: var(--card-bg-alt, rgba(127,127,127,0.12));
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
+    padding: 0.05rem 0.45rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
 }
 
-.bx-trender .bx-chip.bx-away {
-    border-color: color-mix(in srgb, var(--positive-color) 40%, var(--border-color));
+.bx-trender .bx-strip {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    height: 40px;
+    margin-top: 0.6rem;
 }
 
-.bx-trender .bx-chip.bx-toward {
-    border-color: color-mix(in srgb, var(--negative-color) 35%, var(--border-color));
+.bx-trender .bx-strip-plot,
+.bx-trender .bx-strip-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
-.bx-trender .bx-chip.bx-flat {
-    opacity: 0.7;
+.bx-trender .bx-zero {
+    stroke: rgba(127, 127, 127, 0.45);
+    stroke-width: 1;
+}
+
+.bx-trender .bx-axis {
+    position: relative;
+    width: 24px;
+    font-size: 0.625rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--muted-color);
+}
+
+.bx-trender .bx-axis span {
+    position: absolute;
+    right: 0;
+    transform: translateY(-50%);
 }
