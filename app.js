@@ -1,5 +1,5 @@
 import { buildFundamentalsHTML } from './lib/formatters.js';
-import { formatBxChip } from './lib/bxTrender.js';
+import { bxStripGeometry, renderBxStripSvg, formatBxValue, BX_STRIP_COLORS, bxBarColorKey } from './lib/bxStrip.js';
 import { compareByAbsBx } from './lib/bxSort.js';
 
 let stocks = [];
@@ -289,9 +289,14 @@ function createStockCard(symbol) {
             <div class="last-updated">Loading...</div>
         </div>
         <div class="bx-trender" hidden>
-            <span class="bx-label">BX</span>
-            <span class="bx-value"></span>
-            <span class="bx-chip"></span>
+            <div class="bx-head">
+                <span class="bx-label">BX · 10D</span>
+                <span class="bx-tag"></span>
+            </div>
+            <div class="bx-strip" hidden>
+                <div class="bx-strip-plot"></div>
+                <div class="bx-axis"></div>
+            </div>
         </div>
     `;
     return stockCard;
@@ -568,18 +573,31 @@ function displayBxTrender(symbol, payload) {
         return;
     }
 
-    const valueEl = row.querySelector('.bx-value');
-    const chipEl = row.querySelector('.bx-chip');
-    const sign = payload.bxShort > 0 ? '+' : '';
-    valueEl.textContent = `${sign}${payload.bxShort.toFixed(1)}`;
-    valueEl.className = 'bx-value ' + (payload.bxShort >= 0 ? 'bx-positive' : 'bx-negative');
+    const tagEl = row.querySelector('.bx-tag');
+    const stripEl = row.querySelector('.bx-strip');
+    const plotEl = row.querySelector('.bx-strip-plot');
+    const axisEl = row.querySelector('.bx-axis');
 
-    const chip = formatBxChip(payload.direction, payload.magnitude);
-    chipEl.textContent = chip;
-    chipEl.className = 'bx-chip';
-    if (payload.magnitude === 'away') chipEl.classList.add('bx-away');
-    else if (payload.magnitude === 'toward') chipEl.classList.add('bx-toward');
-    else chipEl.classList.add('bx-flat');
+    const history = Array.isArray(payload.history) ? payload.history : [];
+    const lastBar = history.length ? history[history.length - 1] : { value: payload.bxShort };
+    tagEl.textContent = formatBxValue(payload.bxShort);
+    tagEl.style.backgroundColor = BX_STRIP_COLORS[bxBarColorKey(lastBar)];
+
+    const geom = bxStripGeometry(history);
+    if (geom) {
+        plotEl.innerHTML = renderBxStripSvg(geom);
+        axisEl.replaceChildren(...geom.ticks.map(t => {
+            const el = document.createElement('span');
+            el.textContent = t.label;
+            el.style.top = `${(t.y / geom.height) * 100}%`;
+            return el;
+        }));
+        stripEl.hidden = false;
+    } else {
+        plotEl.innerHTML = '';
+        axisEl.replaceChildren();
+        stripEl.hidden = true;
+    }
 
     row.hidden = false;
 }
