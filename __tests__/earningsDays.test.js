@@ -74,9 +74,11 @@ describe('formatEarningsChip', () => {
             .toBe('Earn ~11/25 19d');
     });
 
-    test('today and tomorrow use words', () => {
+    test('today uses the word; tomorrow shows date and 1d', () => {
         expect(formatEarningsChip({ date: '2026-11-06', label: 'Earn 11/6' }, noonNov6)).toBe('Earn today');
-        expect(formatEarningsChip({ date: '2026-11-07', label: 'Earn 11/7' }, noonNov6)).toBe('Earn tomorrow');
+        expect(formatEarningsChip({ date: '2026-11-07', label: 'Earn tomorrow' }, noonNov6)).toBe('Earn 11/7 1d');
+        // 11:30 PM CST Nov 6 (already Nov 7 in UTC) is still one day out
+        expect(formatEarningsChip({ date: '2026-11-07', label: 'Earn 11/7' }, new Date('2026-11-07T05:30:00Z'))).toBe('Earn 11/7 1d');
     });
 
     test('past or missing dates keep the server label; no label hides the chip', () => {
