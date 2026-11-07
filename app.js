@@ -1,6 +1,7 @@
 import { buildFundamentalsHTML } from './lib/formatters.js';
 import { bxStripGeometry, renderBxStripSvg, formatBxValue, BX_STRIP_COLORS, bxBarColorKey } from './lib/bxStrip.js';
 import { compareByAbsBx } from './lib/bxSort.js';
+import { formatEarningsChip } from './lib/earningsDays.js';
 
 let stocks = [];
 let sections = [];
@@ -608,13 +609,14 @@ function displayEarnings(symbol, payload) {
     if (!stockCard) return;
     const badge = stockCard.querySelector('.earnings-badge');
     if (!badge) return;
-    if (!payload || !payload.label) {
+    const chipText = formatEarningsChip(payload);
+    if (!chipText) {
         badge.hidden = true;
         badge.textContent = '';
         badge.removeAttribute('title');
         return;
     }
-    badge.textContent = payload.label;
+    badge.textContent = chipText;
     badge.title = payload.date
         ? (payload.isEstimate ? `Next earnings (est.) ${payload.date}` : `Next earnings ${payload.date}`)
         : 'Next earnings';
