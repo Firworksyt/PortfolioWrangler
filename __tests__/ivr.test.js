@@ -16,10 +16,10 @@ function stubTt({ configured = true, result, error } = {}) {
     };
 }
 
-const items = [
-    { symbol: 'NVDA', ivRank: 81.7, ivPercentile: 99.9, iv: 61.9, asOf: '2026-11-06T21:00:00Z' },
-    { symbol: 'DE', ivRank: 101.3, ivPercentile: 99.4, iv: 46.3, asOf: '2026-11-06T21:00:00Z' },
-];
+const metrics = (stale = false) => ({
+    NVDA: { ivRank: 81.7, ivPercentile: 99.9, iv: 61.9, asOf: '2026-11-06T21:00:00Z', stale },
+    DE: { ivRank: 101.3, ivPercentile: 99.4, iv: 46.3, asOf: '2026-11-06T21:00:00Z', stale: false },
+});
 
 describe('buildIvrPayload', () => {
     it('is unavailable without a module or credentials, and makes no call', async () => {
@@ -30,7 +30,7 @@ describe('buildIvrPayload', () => {
     });
 
     it('maps items into bySymbol and leaves missing symbols out', async () => {
-        const tt = stubTt({ result: { items, missing: ['NOOPT'], stale: false, fetchedAt: 'x' } });
+        const tt = stubTt({ result: metrics() });
         const out = await buildIvrPayload(tt, ['nvda', 'DE', 'NOOPT'], quiet);
         expect(tt.getMarketMetrics).toHaveBeenCalledTimes(1);
         expect(tt.getMarketMetrics).toHaveBeenCalledWith(['NVDA', 'DE', 'NOOPT']);
@@ -44,11 +44,17 @@ describe('buildIvrPayload', () => {
         });
     });
 
-    it('passes the stale flag through on last-good values', async () => {
-        const tt = stubTt({ result: { items, missing: [], stale: true, fetchedAt: 'x' } });
+    it('passes the per-symbol stale flag through', async () => {
+        const tt = stubTt({ result: metrics(true) });
         const out = await buildIvrPayload(tt, ['NVDA', 'DE'], quiet);
         expect(out.bySymbol.NVDA.stale).toBe(true);
-        expect(out.bySymbol.DE.stale).toBe(true);
+        expect(out.bySymbol.DE.stale).toBe(false);
+    });
+
+    it('skips entries without a numeric IV rank', async () => {
+        const tt = stubTt({ result: { ...metrics(), NVDA: { ivRank: null, iv: 10, stale: false }, X: null } });
+        const out = await buildIvrPayload(tt, ['NVDA', 'X'], quiet);
+        expect(Object.keys(out.bySymbol)).toEqual(['DE']);
     });
 
     it.each([
@@ -77,7 +83,7 @@ describe('buildIvrPayload', () => {
     });
 
     it('skips the call for an empty symbol list', async () => {
-        const tt = stubTt({ result: { items: [], missing: [], stale: false } });
+        const tt = stubTt({ result: {} });
         expect(await buildIvrPayload(tt, [], quiet)).toEqual({ available: true, source: 'tastytrade', bySymbol: {} });
         expect(tt.getMarketMetrics).not.toHaveBeenCalled();
     });
