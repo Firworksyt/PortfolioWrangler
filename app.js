@@ -2,6 +2,7 @@ import { buildFundamentalsHTML } from './lib/formatters.js';
 import { bxStripGeometry, renderBxStripSvg, formatBxValue, BX_STRIP_COLORS, bxBarColorKey } from './lib/bxStrip.js';
 import { compareByAbsBx } from './lib/bxSort.js';
 import { formatEarningsChip } from './lib/earningsDays.js';
+import { formatIvrRow } from './lib/ivrRow.js';
 
 let stocks = [];
 let sections = [];
@@ -289,6 +290,11 @@ function createStockCard(symbol) {
             <div class="change-info">Loading...</div>
             <div class="last-updated">Loading...</div>
         </div>
+        <div class="ivr-row" hidden>
+            <span class="ivr-label">IVR <span class="ivr-value"></span></span>
+            <div class="ivr-gauge"><div class="ivr-fill"></div><div class="ivr-tick"></div></div>
+            <span class="ivr-iv"></span>
+        </div>
         <div class="bx-trender" hidden>
             <div class="bx-head">
                 <span class="bx-label">BX · 10D</span>
@@ -343,6 +349,7 @@ async function loadWatchlist() {
         fetchAllStockPrices();
         fetchBxTrender();
     fetchEarnings();
+        fetchIvr();
     } catch (error) {
         console.error('Error loading watchlist:', error);
     }
@@ -395,6 +402,7 @@ async function checkWatchlistChanges() {
             fetchAllStockPrices();
             fetchBxTrender();
     fetchEarnings();
+            fetchIvr();
         }
     } catch (error) {
         console.error('Error checking watchlist changes:', error);
@@ -637,6 +645,45 @@ async function fetchEarnings() {
     }
 }
 
+function displayIvr(symbol, payload) {
+    const stockCard = document.querySelector(`.stock-card[data-symbol="${symbol}"]`);
+    if (!stockCard) return;
+    const row = stockCard.querySelector('.ivr-row');
+    if (!row) return;
+    const view = formatIvrRow(payload, symbol);
+    if (!view) {
+        row.hidden = true;
+        row.removeAttribute('title');
+        return;
+    }
+    row.querySelector('.ivr-value').textContent = view.ivrText;
+    const ivEl = row.querySelector('.ivr-iv');
+    ivEl.textContent = view.ivText || '';
+    ivEl.hidden = !view.ivText;
+    const fill = row.querySelector('.ivr-fill');
+    fill.style.width = `${view.gaugePct}%`;
+    fill.style.background = view.color;
+    const tick = row.querySelector('.ivr-tick');
+    tick.style.left = `calc(${view.gaugePct}% - 1px)`;
+    tick.style.background = view.color;
+    row.classList.toggle('ivr-stale', view.stale);
+    row.title = view.title;
+    row.hidden = false;
+}
+
+async function fetchIvr() {
+    try {
+        const response = await fetch('/api/ivr');
+        if (!response.ok) return;
+        const payload = await response.json();
+        document.querySelectorAll('.stock-card[data-symbol]').forEach((card) => {
+            displayIvr(card.getAttribute('data-symbol'), payload);
+        });
+    } catch (error) {
+        console.error('Error fetching IVR:', error);
+    }
+}
+
 async function fetchBxTrender() {
     try {
         const response = await fetch('/api/bx-trender');
@@ -736,4 +783,5 @@ setInterval(() => {
     fetchMarketStatus();
     fetchBxTrender();
     fetchEarnings();
+    fetchIvr();
 }, REFRESH_INTERVAL);

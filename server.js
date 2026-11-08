@@ -12,6 +12,7 @@ import { getAppVersion } from './lib/version.js';
 import { computeBxPayload, BX_MIN_BARS } from './lib/bxTrender.js';
 import { buildEarningsPayload } from './lib/earnings.js';
 import { createTastytrade } from './lib/tastytrade/index.js';
+import { buildIvrPayload, parseIvrSymbols } from './lib/ivr.js';
 
 const app = express();
 
@@ -499,6 +500,17 @@ app.get('/api/earnings/:symbol', async (req, res) => {
     } catch (error) {
         console.error('Error fetching earnings:', error);
         res.status(500).json({ error: 'Failed to fetch earnings' });
+    }
+});
+
+// IV Rank for watchlist cards (tastytrade market data). Always 200.
+app.get('/api/ivr', async (req, res) => {
+    try {
+        const defaults = watchlist.filter((s) => !cryptoTickers.includes(s));
+        const symbols = parseIvrSymbols(req.query.symbols, defaults);
+        res.json(await buildIvrPayload(app.locals.tastytrade, symbols));
+    } catch {
+        res.json({ available: false, source: 'tastytrade', bySymbol: {} });
     }
 });
 
