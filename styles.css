@@ -697,3 +697,71 @@ h1 {
     right: 0;
     transform: translateY(-50%);
 }
+
+/* IV Rank row on watchlist cards (tastytrade) */
+.ivr-row {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--muted-color);
+}
+
+.ivr-row[hidden],
+.ivr-row .ivr-iv[hidden] {
+    display: none !important;
+}
+
+.ivr-row .ivr-label {
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+    white-space: nowrap;
+}
+
+.ivr-row .ivr-value {
+    font-weight: 700;
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-color);
+}
+
+.ivr-row .ivr-gauge {
+    position: relative;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(127, 127, 127, 0.22);
+}
+
+.ivr-row .ivr-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 3px;
+    opacity: 0.35;
+}
+
+.ivr-row .ivr-tick {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    border-radius: 1px;
+}
+
+.ivr-row .ivr-iv {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ivr-row.ivr-stale {
+    opacity: 0.5;
+    filter: grayscale(1);
+}
