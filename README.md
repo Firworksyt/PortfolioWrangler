@@ -142,6 +142,24 @@ Section headers appear above each group on the dashboard. When sorting by Gainer
 
 > **Backward compatibility:** The legacy `watchlist` key (a flat list of symbols) is still supported — no section headers will be rendered, and existing configs work without any changes.
 
+### tastytrade market data (optional)
+
+The app includes a read-only tastytrade client (`lib/tastytrade/`) for market data such as IV Rank. It uses OAuth only: a client id, a client secret and a refresh token. The refresh token is exchanged for short-lived access tokens, which are kept in memory. Only allowlisted market-data endpoints can be called; order, account, balance and position endpoints are rejected before any request is made.
+
+Create `.env` next to `docker-compose.yml` from the template:
+
+```bash
+cp .env.example .env
+```
+
+```bash
+TASTYTRADE_CLIENT_ID=your-client-id
+TASTYTRADE_CLIENT_SECRET=your-client-secret
+TASTYTRADE_REFRESH_TOKEN=your-refresh-token
+```
+
+`.env` is gitignored and excluded from the Docker image; Docker Compose passes it to the app at runtime. Restart the app after changing it. If any of the three values is missing, the app starts normally without tastytrade data and logs `tastytrade not configured`.
+
 ## Technical Stack
 
 - Frontend: Vanilla JavaScript, Chart.js
