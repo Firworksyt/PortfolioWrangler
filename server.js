@@ -11,8 +11,12 @@ import { parseConfigFile, diffWatchlist } from './lib/configLoader.js';
 import { getAppVersion } from './lib/version.js';
 import { computeBxPayload, BX_MIN_BARS } from './lib/bxTrender.js';
 import { buildEarningsPayload } from './lib/earnings.js';
+import { createTastytrade } from './lib/tastytrade/index.js';
 
 const app = express();
+
+// Read-only tastytrade market data (OAuth). Idle when not configured.
+app.locals.tastytrade = createTastytrade({ env: process.env });
 
 // Create our directory path constants
 const __filename = fileURLToPath(import.meta.url);

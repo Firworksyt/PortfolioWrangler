@@ -1,0 +1,43 @@
+{
+  "_note": "Representative GET /market-metrics response shape (values from the Nov 6, 2026 close). No account or credential data.",
+  "data": {
+    "items": [
+      {
+        "symbol": "NVDA",
+        "implied-volatility-index": "0.6193",
+        "implied-volatility-index-rank": "0.81692",
+        "tw-implied-volatility-index-rank": "0.81692",
+        "implied-volatility-index-rank-source": "tw",
+        "implied-volatility-percentile": "0.998667",
+        "implied-volatility-30-day": "61.93",
+        "historical-volatility-30-day": "45.56",
+        "implied-volatility-updated-at": "2026-11-06T21:00:00.000+00:00",
+        "updated-at": "2026-11-06T21:05:00.000+00:00"
+      },
+      {
+        "symbol": "SPY",
+        "implied-volatility-index": "0.2373",
+        "implied-volatility-index-rank": "0.764085",
+        "implied-volatility-index-rank-source": "tw",
+        "implied-volatility-percentile": "0.921254",
+        "implied-volatility-30-day": "23.73",
+        "implied-volatility-updated-at": "2026-11-06T21:00:00.000+00:00",
+        "updated-at": "2026-11-06T21:05:00.000+00:00"
+      },
+      {
+        "symbol": "DE",
+        "implied-volatility-index": "0.4633",
+        "implied-volatility-index-rank": "1.01318",
+        "implied-volatility-index-rank-source": "tw",
+        "implied-volatility-percentile": "0.994026",
+        "implied-volatility-30-day": "46.33",
+        "implied-volatility-updated-at": "2026-11-06T21:00:00.000+00:00",
+        "updated-at": "2026-11-06T21:05:00.000+00:00"
+      },
+      {
+        "symbol": "NOOPT",
+        "updated-at": "2026-11-06T21:05:00.000+00:00"
+      }
+    ]
+  }
+}

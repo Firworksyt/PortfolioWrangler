@@ -7,6 +7,9 @@ services:
       args:
         COMMIT_HASH: ${COMMIT_HASH:-unknown}
         BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-}
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "3000:3000"
     volumes:
