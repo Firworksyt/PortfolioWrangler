@@ -219,7 +219,7 @@ describe('OAuth only', () => {
     test('401 forces one token refresh and retries', async () => {
         const { tt, fetchImpl } = make({ handlers: [token(1), () => res(401, {}), token(2), metrics()] });
         const out = await tt.getMarketMetrics(['NVDA']);
-        expect(out.items[0].symbol).toBe('NVDA');
+        expect(Object.keys(out)).toEqual(['NVDA']);
         expect(fetchImpl.calls.map((c) => c.path)).toEqual(['/oauth/token', '/market-metrics', '/oauth/token', '/market-metrics']);
         expect(fetchImpl.calls[3].init.headers.Authorization).toBe('Bearer access-TEST-2');
     });
@@ -240,24 +240,22 @@ describe('OAuth only', () => {
 });
 
 describe('getMarketMetrics', () => {
-    test('normalizes to 0-100, passes IVR above 100 through, reports no-options as missing', async () => {
+    test('normalizes to 0-100, passes IVR above 100 through, leaves no-options symbols out', async () => {
         const { tt } = make({ handlers: [token(), metrics()] });
         const out = await tt.getMarketMetrics(['nvda', 'SPY', 'DE', 'NOOPT']);
-        expect(out.stale).toBe(false);
-        expect(out.missing).toEqual(['NOOPT']);
-        expect(out.items).toEqual([
-            { symbol: 'NVDA', ivRank: 81.7, ivPercentile: 99.9, iv: 61.9, asOf: '2026-11-06T21:00:00.000+00:00' },
-            { symbol: 'SPY', ivRank: 76.4, ivPercentile: 92.1, iv: 23.7, asOf: '2026-11-06T21:00:00.000+00:00' },
-            { symbol: 'DE', ivRank: 101.3, ivPercentile: 99.4, iv: 46.3, asOf: '2026-11-06T21:00:00.000+00:00' },
-        ]);
-        expect(out.fetchedAt).toBe(new Date(OPEN_T).toISOString());
+        const asOf = '2026-11-06T21:00:00.000+00:00';
+        expect(out).toEqual({
+            NVDA: { ivRank: 81.7, ivPercentile: 99.9, iv: 61.9, asOf, stale: false },
+            SPY: { ivRank: 76.4, ivPercentile: 92.1, iv: 23.7, asOf, stale: false },
+            DE: { ivRank: 101.3, ivPercentile: 99.4, iv: 46.3, asOf, stale: false },
+        });
+        expect(out).not.toHaveProperty('NOOPT');
     });
 
-    test('symbols not returned by tastytrade are missing', async () => {
+    test('symbols not returned by tastytrade are left out', async () => {
         const { tt } = make({ handlers: [token(), metrics(ITEMS.slice(0, 1))] });
         const out = await tt.getMarketMetrics(['NVDA', 'ZZZZ']);
-        expect(out.items.map((i) => i.symbol)).toEqual(['NVDA']);
-        expect(out.missing).toEqual(['ZZZZ']);
+        expect(Object.keys(out)).toEqual(['NVDA']);
     });
 
     test('batches symbols into groups of 50 in one pass', async () => {
@@ -287,7 +285,7 @@ describe('getMarketMetrics', () => {
     test('429 retries with backoff (honoring Retry-After) and then succeeds', async () => {
         const { tt, sleeps } = make({ handlers: [token(), () => res(429, {}, { 'retry-after': '2' }), () => res(429, {}), metrics()] });
         const out = await tt.getMarketMetrics(['NVDA']);
-        expect(out.items).toHaveLength(1);
+        expect(Object.keys(out)).toEqual(['NVDA']);
         expect(sleeps).toEqual([2000, 1000]);
     });
 
@@ -318,6 +316,14 @@ describe('getMarketMetrics', () => {
         await expect(http.request('GET', '/market-metrics', { query: { symbols: 'NVDA' } })).rejects.toBeInstanceOf(TimeoutError);
     });
 
+    test('auth failure after a good fetch throws AuthError instead of serving stale values', async () => {
+        let t = OPEN_T;
+        const { tt } = make({ now: () => t, handlers: [token(1), metrics(), () => res(401, {})] });
+        await tt.getMarketMetrics(['NVDA']);
+        t += 15 * 60 * 1000;
+        await expect(tt.getMarketMetrics(['NVDA'])).rejects.toBeInstanceOf(AuthError);
+    });
+
     test('upstream failure after a good fetch returns last-good values marked stale, then backs off 5 min', async () => {
         let t = OPEN_T;
         const logger = makeLogger();
@@ -330,19 +336,16 @@ describe('getMarketMetrics', () => {
         await tt.getMarketMetrics(['NVDA', 'DE']);
         t += 15 * 60 * 1000;
         const stale = await tt.getMarketMetrics(['NVDA', 'DE', 'SPY']);
-        expect(stale.stale).toBe(true);
-        expect(stale.items.map((i) => [i.symbol, i.ivRank])).toEqual([['NVDA', 81.7], ['DE', 101.3]]);
-        expect(stale.missing).toEqual(['SPY']);
-        expect(stale.fetchedAt).toBe(new Date(OPEN_T).toISOString());
+        expect(Object.entries(stale).map(([k, v]) => [k, v.ivRank, v.stale])).toEqual([['NVDA', 81.7, true], ['DE', 101.3, true]]);
         expect(logger.lines).toEqual(['tastytrade upstream error (HTTP 503)']);
 
         t += 5 * 60 * 1000 - 1;
-        expect((await tt.getMarketMetrics(['NVDA'])).stale).toBe(true);
+        expect((await tt.getMarketMetrics(['NVDA'])).NVDA.stale).toBe(true);
         expect(fetchImpl.calls.filter((c) => c.path === '/market-metrics')).toHaveLength(2); // backing off
 
         t += 1;
         const fresh = await tt.getMarketMetrics(['NVDA']);
-        expect(fresh.stale).toBe(false);
+        expect(fresh.NVDA.stale).toBe(false);
         expect(fetchImpl.calls.filter((c) => c.path === '/market-metrics')).toHaveLength(3);
     });
 
