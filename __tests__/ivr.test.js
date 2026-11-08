@@ -1,6 +1,8 @@
 import { jest } from '@jest/globals';
+import { readFileSync } from 'fs';
 import { buildIvrPayload, parseIvrSymbols } from '../lib/ivr.js';
 import {
+    createTastytrade,
     AuthError, NotConfiguredError, RateLimitedError, TimeoutError, UpstreamError,
 } from '../lib/tastytrade/index.js';
 
@@ -97,5 +99,79 @@ describe('parseIvrSymbols', () => {
         expect(parseIvrSymbols(undefined, ['NVDA', 'DE'])).toEqual(['NVDA', 'DE']);
         expect(parseIvrSymbols('', ['NVDA'])).toEqual(['NVDA']);
         expect(parseIvrSymbols(['a', 'b'], ['NVDA'])).toEqual(['NVDA']);
+    });
+});
+
+describe('buildIvrPayload with the real tastytrade module (mocked fetch)', () => {
+    const fixture = JSON.parse(readFileSync(new URL('./fixtures/tastytrade_market_metrics.json', import.meta.url), 'utf8'));
+    const ENV = {
+        TASTYTRADE_CLIENT_ID: 'id-TEST',
+        TASTYTRADE_CLIENT_SECRET: 'secret-TEST',
+        TASTYTRADE_REFRESH_TOKEN: 'refresh-TEST',
+        TASTYTRADE_API_BASE: 'http://127.0.0.1:4010',
+    };
+    // Saturday 2026-11-07 00:00Z: market closed all weekend, so the TTL is the 12h closed TTL.
+    const T0 = Date.parse('2026-11-07T00:00:00Z');
+    const HOUR = 60 * 60 * 1000;
+
+    function setup() {
+        const state = { t: T0, upstream: 'ok', metricsCalls: 0, tokenCalls: 0 };
+        const json = (status, body) => ({
+            ok: status >= 200 && status < 300,
+            status,
+            headers: { get: () => null },
+            json: async () => body,
+        });
+        const fetchImpl = async (url) => {
+            const u = new URL(url);
+            if (u.pathname === '/oauth/token') {
+                state.tokenCalls++;
+                return json(200, { access_token: 'access-TEST', expires_in: 7 * 24 * 3600 });
+            }
+            state.metricsCalls++;
+            if (state.upstream !== 'ok') return json(503, {});
+            const want = (u.searchParams.get('symbols') || '').split(',');
+            return json(200, { data: { items: fixture.data.items.filter((i) => want.includes(i.symbol)) } });
+        };
+        const tt = createTastytrade({
+            env: ENV,
+            fetchImpl,
+            now: () => state.t,
+            sleep: async () => {},
+            logger: { warn() {}, error() {} },
+            http: { minIntervalMs: 0 },
+        });
+        return { tt, state };
+    }
+
+    it('maps the keyed result, keeps IVR above 100, and leaves no-options symbols out', async () => {
+        const { tt, state } = setup();
+        const out = await buildIvrPayload(tt, ['NVDA', 'DE', 'NOOPT'], quiet);
+        expect(out.available).toBe(true);
+        expect(Object.keys(out.bySymbol).sort()).toEqual(['DE', 'NVDA']);
+        expect(out.bySymbol.DE.ivr).toBeGreaterThan(100);
+        expect(out.bySymbol.NVDA).toEqual(expect.objectContaining({ ivr: 81.7, stale: false }));
+        await buildIvrPayload(tt, ['NVDA', 'DE', 'NOOPT'], quiet);
+        expect(state.metricsCalls).toBe(1);
+    });
+
+    it('greys only the symbol whose refresh failed', async () => {
+        const { tt, state } = setup();
+        await buildIvrPayload(tt, ['NVDA'], quiet);           // NVDA cached at T0
+
+        state.t = T0 + 13 * HOUR;                              // NVDA past TTL
+        state.upstream = 'down';
+        let out = await buildIvrPayload(tt, ['NVDA', 'SPY'], quiet);
+        expect(out.bySymbol.NVDA.stale).toBe(true);            // last-good
+        expect(out.bySymbol.SPY).toBeUndefined();              // nothing cached
+
+        state.t += 6 * 60 * 1000;                              // past the failure backoff
+        state.upstream = 'ok';
+        await buildIvrPayload(tt, ['SPY'], quiet);             // SPY fresh
+
+        state.upstream = 'down';
+        out = await buildIvrPayload(tt, ['NVDA', 'SPY'], quiet);
+        expect(out.bySymbol.NVDA.stale).toBe(true);
+        expect(out.bySymbol.SPY.stale).toBe(false);
     });
 });
