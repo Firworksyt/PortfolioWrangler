@@ -1,4 +1,4 @@
-import { formatIvrRow, ivrBand, IVR_BAND_COLORS } from '../lib/ivrRow.js';
+import { formatIvrRow, formatIvrAsOf, ivrBand, IVR_BAND_COLORS } from '../lib/ivrRow.js';
 
 const payload = (bySymbol, extra = {}) => ({ available: true, source: 'tastytrade', bySymbol, ...extra });
 const nvda = { ivr: 81.7, ivPercentile: 99.9, iv: 61.9, asOf: '2026-11-06T21:00:00Z', stale: false };
@@ -30,7 +30,7 @@ describe('formatIvrRow', () => {
         expect(v.band).toBe('high');
         expect(v.color).toBe(IVR_BAND_COLORS.high);
         expect(v.stale).toBe(false);
-        expect(v.title).toBe('IV Rank 81.7 · IV percentile 99.9\nSource: tastytrade\nAs of 2026-11-06T21:00:00Z');
+        expect(v.title).toBe('IV Rank 81.7 · IV percentile 99.9\nSource: tastytrade\nAs of Nov 6, 3:00 PM CT');
     });
 
     it('shows the real number above 100 and clamps the gauge', () => {
@@ -65,5 +65,25 @@ describe('ivrBand', () => {
         expect(ivrBand(49.9)).toBe('mid');
         expect(ivrBand(50)).toBe('high');
         expect(ivrBand(140)).toBe('high');
+    });
+});
+
+describe('formatIvrAsOf', () => {
+    it('formats in Chicago time (CST)', () => {
+        expect(formatIvrAsOf('2026-11-06T21:00:00Z')).toBe('Nov 6, 3:00 PM CT');
+        expect(formatIvrAsOf('2026-11-06T21:00:00.000+00:00')).toBe('Nov 6, 3:00 PM CT');
+    });
+    it('formats in Chicago time (CDT) and across the date line', () => {
+        expect(formatIvrAsOf('2026-07-01T20:00:00Z')).toBe('Jul 1, 3:00 PM CT');
+        expect(formatIvrAsOf('2026-11-07T03:30:00Z')).toBe('Nov 6, 9:30 PM CT');
+    });
+    it('returns null for missing or invalid input', () => {
+        expect(formatIvrAsOf(null)).toBeNull();
+        expect(formatIvrAsOf('')).toBeNull();
+        expect(formatIvrAsOf('not-a-date')).toBeNull();
+    });
+    it('leaves the as-of line out of the tooltip when invalid', () => {
+        const v = formatIvrRow({ available: true, bySymbol: { X: { ivr: 40, iv: 20, asOf: 'bad', stale: false } } }, 'X');
+        expect(v.title).not.toContain('As of');
     });
 });
