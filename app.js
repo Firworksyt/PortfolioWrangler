@@ -63,17 +63,26 @@ window.onclick = (event) => {
     if (event.target === modal) modal.style.display = 'none';
 };
 
-// Sort buttons
+// Sort controls: buttons on wide screens, a dropdown on narrow ones. Both stay in sync.
+const sortSelect = document.getElementById('sortSelect');
+
+function setSort(value) {
+    currentSort = value;
+    localStorage.setItem('sort', currentSort);
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === currentSort));
+    if (sortSelect) sortSelect.value = currentSort;
+    applySortToContainer();
+}
+
 document.querySelectorAll('.sort-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.sort === currentSort);
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentSort = btn.dataset.sort;
-        localStorage.setItem('sort', currentSort);
-        applySortToContainer();
-    });
+    btn.addEventListener('click', () => setSort(btn.dataset.sort));
 });
+
+if (sortSelect) {
+    sortSelect.value = currentSort;
+    sortSelect.addEventListener('change', () => setSort(sortSelect.value));
+}
 
 
 // Range buttons

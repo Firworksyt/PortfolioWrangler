@@ -622,7 +622,37 @@ h1 {
 .sort-btn.active { background: var(--accent-color); color: #fff; border-color: var(--accent-color); }
 
 
-@media (max-width: 600px) { .sort-controls { display: none; } }
+/* Narrow screens: swap the button row for a compact dropdown */
+.sort-select { display: none; }
+
+@media (max-width: 600px) {
+    .header { flex-wrap: wrap; row-gap: 0.75rem; }
+    .sort-controls { display: none; }
+    .sort-select {
+        display: block;
+        order: 3;
+        flex: 1 0 100%;
+        height: 36px;
+        padding: 0 1.75rem 0 0.625rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background-color: transparent;
+        background-image: linear-gradient(45deg, transparent 50%, var(--muted-color) 50%),
+                          linear-gradient(135deg, var(--muted-color) 50%, transparent 50%);
+        background-position: right 0.875rem center, right 0.5625rem center;
+        background-size: 5px 5px, 5px 5px;
+        background-repeat: no-repeat;
+        color: var(--text-color);
+        font-size: 0.875rem;
+        font-family: inherit;
+        font-weight: 500;
+        -webkit-appearance: none;
+        appearance: none;
+        cursor: pointer;
+    }
+    .sort-select:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+    .sort-select option { color: var(--text-color); background: var(--card-bg); }
+}
 
 /* BX Trender mini strip on watchlist cards (Option 2b) */
 .bx-trender {
