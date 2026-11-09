@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { formatIvrRow, formatIvrAsOf, ivrBand, IVR_BAND_COLORS } from '../lib/ivrRow.js';
 
 const payload = (bySymbol, extra = {}) => ({ available: true, source: 'tastytrade', bySymbol, ...extra });
@@ -30,7 +31,11 @@ describe('formatIvrRow', () => {
         expect(v.band).toBe('high');
         expect(v.color).toBe(IVR_BAND_COLORS.high);
         expect(v.stale).toBe(false);
-        expect(v.title).toBe('IV Rank 81.7 · IV percentile 99.9\nSource: tastytrade\nAs of Nov 6, 3:00 PM CT');
+        const localTime = new Intl.DateTimeFormat(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', timeZoneName: 'shortOffset',
+        }).format(new Date(nvda.asOf));
+        expect(v.title).toBe(`IV Rank 81.7 · IV percentile 99.9\nSource: tastytrade\nAs of ${localTime}`);
     });
 
     it('shows the real number above 100 and clamps the gauge', () => {
@@ -69,21 +74,71 @@ describe('ivrBand', () => {
 });
 
 describe('formatIvrAsOf', () => {
-    it('formats in Chicago time (CST)', () => {
-        expect(formatIvrAsOf('2026-11-06T21:00:00Z')).toBe('Nov 6, 3:00 PM CT');
-        expect(formatIvrAsOf('2026-11-06T21:00:00.000+00:00')).toBe('Nov 6, 3:00 PM CT');
+    const environments = [
+        {
+            timeZone: 'America/New_York', locale: 'en_US.UTF-8', resolvedLocale: 'en-US',
+            cases: [
+                ['2026-01-15T12:00:00Z', 'Jan 15, 2026, 7:00 AM GMT-5'],
+                ['2026-07-15T12:00:00Z', 'Jul 15, 2026, 8:00 AM GMT-4'],
+                ['2026-03-08T06:59:00Z', 'Mar 8, 2026, 1:59 AM GMT-5'],
+                ['2026-03-08T07:00:00Z', 'Mar 8, 2026, 3:00 AM GMT-4'],
+                ['2026-11-01T05:30:00Z', 'Nov 1, 2026, 1:30 AM GMT-4'],
+                ['2026-11-01T06:30:00Z', 'Nov 1, 2026, 1:30 AM GMT-5'],
+                ['2026-11-07T03:30:00Z', 'Nov 6, 2026, 10:30 PM GMT-5'],
+            ],
+        },
+        {
+            timeZone: 'Europe/Berlin', locale: 'de_DE.UTF-8', resolvedLocale: 'de-DE',
+            cases: [
+                ['2026-01-15T12:00:00Z', '15. Jan. 2026, 13:00 GMT+1'],
+                ['2026-07-15T12:00:00Z', '15. Juli 2026, 14:00 GMT+2'],
+                ['2026-03-29T00:59:00Z', '29. März 2026, 01:59 GMT+1'],
+                ['2026-03-29T01:00:00Z', '29. März 2026, 03:00 GMT+2'],
+                ['2026-10-25T00:30:00Z', '25. Okt. 2026, 02:30 GMT+2'],
+                ['2026-10-25T01:30:00Z', '25. Okt. 2026, 02:30 GMT+1'],
+                ['2026-11-07T03:30:00Z', '7. Nov. 2026, 04:30 GMT+1'],
+            ],
+        },
+    ];
+
+    it.each(environments)('uses runtime defaults in $timeZone / $resolvedLocale, including DST', ({ timeZone, locale, resolvedLocale, cases }) => {
+        // Separate processes set real runtime defaults without mocking Intl or changing this process.
+        const moduleUrl = new URL('../lib/ivrRow.js', import.meta.url).href;
+        const program = `
+            import { formatIvrAsOf, formatIvrRow } from ${JSON.stringify(moduleUrl)};
+            const cases = ${JSON.stringify(cases)};
+            const inputs = cases.map(([iso]) => iso);
+            const entries = inputs.map(asOf => Object.freeze({ ivr: 40, asOf }));
+            const values = entries.map(entry => {
+                const payload = Object.freeze({ available: true, bySymbol: Object.freeze({ X: entry }) });
+                return { formatted: formatIvrAsOf(entry.asOf), title: formatIvrRow(payload, 'X').title, asOf: entry.asOf };
+            });
+            console.log(JSON.stringify({ defaults: new Intl.DateTimeFormat().resolvedOptions(), values }));
+        `;
+        const result = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', program], {
+            env: { ...process.env, TZ: timeZone, LANG: locale, LC_ALL: locale }, encoding: 'utf8',
+        }));
+        expect(result.defaults.timeZone).toBe(timeZone);
+        expect(result.defaults.locale).toBe(resolvedLocale);
+        expect(result.values).toEqual(cases.map(([iso, expected]) => ({
+            formatted: expected,
+            title: `IV Rank 40.0\nSource: tastytrade\nAs of ${expected}`,
+            asOf: iso,
+        })));
     });
-    it('formats in Chicago time (CDT) and across the date line', () => {
-        expect(formatIvrAsOf('2026-07-01T20:00:00Z')).toBe('Jul 1, 3:00 PM CT');
-        expect(formatIvrAsOf('2026-11-07T03:30:00Z')).toBe('Nov 6, 9:30 PM CT');
+
+    it('treats equivalent ISO offsets as the same instant without rewriting the source', () => {
+        const iso = '2026-11-06T16:00:00-05:00';
+        const entry = Object.freeze({ ivr: 40, asOf: iso });
+        const data = Object.freeze({ available: true, bySymbol: Object.freeze({ X: entry }) });
+        expect(formatIvrAsOf(iso)).toBe(formatIvrAsOf('2026-11-06T21:00:00Z'));
+        expect(formatIvrRow(data, 'X').title).toContain(`As of ${formatIvrAsOf(iso)}`);
+        expect(data.bySymbol.X.asOf).toBe(iso);
     });
-    it('returns null for missing or invalid input', () => {
-        expect(formatIvrAsOf(null)).toBeNull();
-        expect(formatIvrAsOf('')).toBeNull();
-        expect(formatIvrAsOf('not-a-date')).toBeNull();
-    });
-    it('leaves the as-of line out of the tooltip when invalid', () => {
-        const v = formatIvrRow({ available: true, bySymbol: { X: { ivr: 40, iv: 20, asOf: 'bad', stale: false } } }, 'X');
+
+    it.each([undefined, null, '', 'not-a-date'])('omits missing or invalid as-of input %p', asOf => {
+        expect(formatIvrAsOf(asOf)).toBeNull();
+        const v = formatIvrRow(payload({ X: { ivr: 40, asOf } }), 'X');
         expect(v.title).not.toContain('As of');
     });
 });
