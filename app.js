@@ -3,6 +3,7 @@ import { bxStripGeometry, renderBxStripSvg, formatBxValue, BX_STRIP_COLORS, bxBa
 import { compareByAbsBx } from './lib/bxSort.js';
 import { formatEarningsChip } from './lib/earningsDays.js';
 import { formatIvrRow } from './lib/ivrRow.js';
+import { ivrFilterState, passesIvrFilter } from './lib/ivrFilter.js';
 
 let stocks = [];
 let sections = [];
@@ -18,6 +19,7 @@ let currentHistorySymbol = null;
 let initialCommitHash = null;
 let currentSort = localStorage.getItem('sort') ?? 'default';
 const lastBx = {};
+const lastIvr = {};
 
 // Dark mode initialization
 const darkModeToggle = document.getElementById('darkModeToggle');
@@ -82,6 +84,48 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
 if (sortSelect) {
     sortSelect.value = currentSort;
     sortSelect.addEventListener('change', () => setSort(sortSelect.value));
+}
+
+// IVR range filter: [min] – [max], applied live and saved like the sort choice.
+const ivrMinInput = document.getElementById('ivrMin');
+const ivrMaxInput = document.getElementById('ivrMax');
+
+if (ivrMinInput && ivrMaxInput) {
+    ivrMinInput.value = localStorage.getItem('ivrMin') ?? '';
+    ivrMaxInput.value = localStorage.getItem('ivrMax') ?? '';
+    const onIvrInput = () => {
+        localStorage.setItem('ivrMin', ivrMinInput.value);
+        localStorage.setItem('ivrMax', ivrMaxInput.value);
+        applyIvrFilter();
+    };
+    ivrMinInput.addEventListener('input', onIvrInput);
+    ivrMaxInput.addEventListener('input', onIvrInput);
+}
+
+function applyIvrFilter() {
+    if (!ivrMinInput || !ivrMaxInput) return;
+    const state = ivrFilterState(ivrMinInput.value, ivrMaxInput.value);
+    [ivrMinInput, ivrMaxInput].forEach(el => {
+        el.classList.toggle('invalid', state.invalid);
+        if (state.invalid) el.setAttribute('aria-invalid', 'true');
+        else el.removeAttribute('aria-invalid');
+    });
+
+    const container = document.getElementById('stocks-container');
+    if (!container) return;
+    container.querySelectorAll('.stock-card[data-symbol]').forEach(card => {
+        const show = passesIvrFilter(lastIvr[card.dataset.symbol], state);
+        card.classList.toggle('ivr-filtered-out', !show);
+    });
+
+    // In the sectioned (default) view, hide a section header when none of its cards pass.
+    if (currentSort === 'default') {
+        const headers = [...container.querySelectorAll('.section-header')];
+        headers.forEach((header, i) => {
+            const visible = container.querySelector(`.stock-card[data-section-index="${i}"]:not(.ivr-filtered-out)`);
+            header.style.display = state.active && !visible ? 'none' : '';
+        });
+    }
 }
 
 
@@ -564,6 +608,7 @@ function applySortToContainer() {
             sectionCards.forEach(c => container.appendChild(c));
         });
     }
+    applyIvrFilter();
 }
 
 function fetchAllStockPrices() {
@@ -659,6 +704,8 @@ function displayIvr(symbol, payload) {
     if (!stockCard) return;
     const row = stockCard.querySelector('.ivr-row');
     if (!row) return;
+    const entry = payload?.available === true ? payload.bySymbol?.[symbol] : null;
+    lastIvr[symbol] = Number.isFinite(entry?.ivr) ? entry.ivr : null;
     const view = formatIvrRow(payload, symbol);
     if (!view) {
         row.hidden = true;
@@ -688,6 +735,7 @@ async function fetchIvr() {
         document.querySelectorAll('.stock-card[data-symbol]').forEach((card) => {
             displayIvr(card.getAttribute('data-symbol'), payload);
         });
+        applyIvrFilter();
     } catch (error) {
         console.error('Error fetching IVR:', error);
     }
