@@ -18,20 +18,28 @@
                 <i class="fas fa-chart-line header-icon"></i>
                 <h1>Portfolio Wrangler</h1>
             </div>
-            <div class="sort-controls">
-                <button class="sort-btn active" data-sort="default">Default</button>
-                <button class="sort-btn" data-sort="gainers">Gainers</button>
-                <button class="sort-btn" data-sort="losers">Losers</button>
-                <button class="sort-btn" data-sort="alpha">A–Z</button>
-                <button class="sort-btn" data-sort="bx" title="Sort by |BX| high to low">|BX|</button>
+            <div class="header-toolbar">
+                <div class="sort-controls">
+                    <button class="sort-btn active" data-sort="default">Default</button>
+                    <button class="sort-btn" data-sort="gainers">Gainers</button>
+                    <button class="sort-btn" data-sort="losers">Losers</button>
+                    <button class="sort-btn" data-sort="alpha">A–Z</button>
+                    <button class="sort-btn" data-sort="bx" title="Sort by |BX| high to low">|BX|</button>
+                </div>
+                <select id="sortSelect" class="sort-select" aria-label="Sort">
+                    <option value="default">Sort: Default</option>
+                    <option value="gainers">Sort: Gainers</option>
+                    <option value="losers">Sort: Losers</option>
+                    <option value="alpha">Sort: A–Z</option>
+                    <option value="bx">Sort: |BX| high to low</option>
+                </select>
+                <div class="ivr-filter" role="group" aria-label="IVR range filter">
+                    <span class="ivr-filter-label" aria-hidden="true">IVR</span>
+                    <input id="ivrMin" class="ivr-filter-input" type="number" inputmode="decimal" min="0" step="any" placeholder="min" aria-label="Minimum IVR">
+                    <span class="ivr-filter-dash" aria-hidden="true">–</span>
+                    <input id="ivrMax" class="ivr-filter-input" type="number" inputmode="decimal" min="0" step="any" placeholder="max" aria-label="Maximum IVR">
+                </div>
             </div>
-            <select id="sortSelect" class="sort-select" aria-label="Sort">
-                <option value="default">Sort: Default</option>
-                <option value="gainers">Sort: Gainers</option>
-                <option value="losers">Sort: Losers</option>
-                <option value="alpha">Sort: A–Z</option>
-                <option value="bx">Sort: |BX| high to low</option>
-            </select>
             <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle Dark Mode">
                 <i class="fas fa-blind"></i>
             </button>
