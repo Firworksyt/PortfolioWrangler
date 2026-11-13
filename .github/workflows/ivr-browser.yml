@@ -1,0 +1,49 @@
+name: IVR browser timestamps
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - lib/ivrRow.js
+      - tests/browser/**
+      - .github/workflows/ivr-browser.yml
+  push:
+    branches: [master]
+    paths:
+      - lib/ivrRow.js
+      - tests/browser/**
+      - .github/workflows/ivr-browser.yml
+
+permissions:
+  contents: read
+
+jobs:
+  browser-local-time:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: Install isolated test-only Playwright
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ivr-browser" --no-save --package-lock=false playwright@1.65.0
+          "$RUNNER_TEMP/ivr-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify actual browser defaults and timestamp rendering
+        env:
+          NODE_PATH: ${{ runner.temp }}/ivr-browser/node_modules
+          IVR_BROWSER_EVIDENCE: ${{ runner.temp }}/ivr-browser-evidence
+          TESTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TZ: UTC
+        run: node tests/browser/ivr-local-time.js
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ivr-browser-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/ivr-browser-evidence/
+          if-no-files-found: warn
+          retention-days: 14
